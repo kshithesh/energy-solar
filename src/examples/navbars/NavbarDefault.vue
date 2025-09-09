@@ -117,10 +117,10 @@ watch(
         ]"
         :to="{ name: 'presentation' }"
         rel="tooltip"
-        title="Designed and Coded by Creative Tim"
+        title=""
         data-placement="bottom"
       >
-        Material Kit 2
+        Energy Solar
       </RouterLink>
       <RouterLink
         class="navbar-brand d-block d-md-none"
@@ -131,16 +131,11 @@ watch(
         "
         to="/"
         rel="tooltip"
-        title="Designed and Coded by Creative Tim"
+        title=""
         data-placement="bottom"
       >
-        Material Design
+        Energy Solar
       </RouterLink>
-      <a
-        href="https://www.creative-tim.com/product/vue-material-kit-pro"
-        class="btn btn-sm bg-gradient-success mb-0 ms-auto d-lg-none d-block"
-        >Buy Now</a
-      >
       <button
         class="navbar-toggler shadow-none ms-2"
         type="button"
@@ -161,7 +156,7 @@ watch(
         id="navigation"
       >
         <ul class="navbar-nav navbar-nav-hover ms-auto">
-          <li class="nav-item dropdown dropdown-hover mx-2">
+          <!-- <li class="nav-item dropdown dropdown-hover mx-2">
             <a
               role="button"
               class="nav-link ps-2 d-flex cursor-pointer align-items-center"
@@ -175,7 +170,7 @@ watch(
                 :class="getTextColor()"
                 >dashboard</i
               >
-              Pages
+              Services
               <img
                 :src="getArrowColor()"
                 alt="down-arrow"
@@ -198,25 +193,25 @@ watch(
                       <div
                         class="dropdown-header text-dark font-weight-bolder d-flex align-items-center px-1"
                       >
-                        Landing Pages
+                        Services & Expertise
                       </div>
                       <RouterLink
                         :to="{ name: 'about' }"
                         class="dropdown-item border-radius-md"
                       >
-                        <span>About Us</span>
+                        <span>Project Development</span>
                       </RouterLink>
                       <RouterLink
                         :to="{ name: 'contactus' }"
                         class="dropdown-item border-radius-md"
                       >
-                        <span>Contact Us</span>
+                        <span>Design and Engineering</span>
                       </RouterLink>
                       <RouterLink
                         :to="{ name: 'author' }"
                         class="dropdown-item border-radius-md"
                       >
-                        <span>Author</span>
+                        <span>Installation & Construction</span>
                       </RouterLink>
                       <div
                         class="dropdown-header text-dark font-weight-bolder d-flex align-items-center px-0 mt-3"
@@ -270,7 +265,7 @@ watch(
                 </RouterLink>
               </div>
             </div>
-          </li>
+          </li> -->
           <li class="nav-item dropdown dropdown-hover mx-2">
             <a
               role="button"
@@ -285,7 +280,7 @@ watch(
                 :class="getTextColor()"
                 >view_day</i
               >
-              Sections
+              Projects
               <img
                 :src="getArrowColor()"
                 alt="down-arrow"
@@ -318,9 +313,9 @@ watch(
                             <h6
                               class="dropdown-header text-dark font-weight-bolder d-flex justify-content-cente align-items-center p-0"
                             >
-                              Page Sections
+                              Project Cost Estimates
                             </h6>
-                            <span class="text-sm">See all sections</span>
+                            <span class="text-sm">See all Configurations</span>
                           </div>
                           <img
                             :src="downArrow"
@@ -335,17 +330,17 @@ watch(
                         class="dropdown-item ps-3 border-radius-md mb-1"
                         :to="{ name: 'page-headers' }"
                       >
-                        Page Headers
+                        1.2 MW DC
                       </RouterLink>
                       <RouterLink
                         class="dropdown-item ps-3 border-radius-md mb-1"
                         :to="{ name: 'page-features' }"
                       >
-                        Features
+                        2.4 MW DC
                       </RouterLink>
                     </div>
                   </li>
-                  <li
+                  <!-- <li
                     class="nav-item dropdown dropdown-hover dropdown-subitem list-group-item border-0 p-0"
                   >
                     <a
@@ -566,7 +561,7 @@ watch(
                         Typography
                       </RouterLink>
                     </div>
-                  </li>
+                  </li> -->
                 </ul>
               </div>
               <div class="row d-lg-none">
@@ -754,7 +749,7 @@ watch(
               </div>
             </div>
           </li>
-          <li class="nav-item dropdown dropdown-hover mx-2">
+          <!-- <li class="nav-item dropdown dropdown-hover mx-2">
             <a
               role="button"
               class="nav-link ps-2 d-flex cursor-pointer align-items-center"
@@ -928,9 +923,9 @@ watch(
               </svg>
               Github
             </a>
-          </li>
+          </li> -->
         </ul>
-        <ul class="navbar-nav d-lg-block d-none">
+        <!-- <ul class="navbar-nav d-lg-block d-none">
           <li class="nav-item">
             <a
               :href="action.route"
@@ -940,7 +935,7 @@ watch(
               >{{ action.label }}</a
             >
           </li>
-        </ul>
+        </ul> -->
       </div>
     </div>
   </nav>
