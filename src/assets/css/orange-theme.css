@@ -1,0 +1,70 @@
+/* Orange theme override triggered by adding the class `theme-orange` to html root */
+
+/* Backgrounds */
+.theme-orange body,
+.theme-orange .bg-white {
+  background-color: #fff7f0 !important;
+}
+
+/* Cards */
+.theme-orange .card,
+.theme-orange .navbar-light.bg-white {
+  background-color: #fff3e6 !important;
+}
+
+/* Primary accents and buttons */
+.theme-orange .btn-dark,
+.theme-orange .btn-primary,
+.theme-orange .bg-gradient-dark {
+  background: linear-gradient(195deg, #ff8a00, #ff6a00) !important;
+  color: #fff !important;
+}
+
+/* Links and emphasis */
+.theme-orange a,
+.theme-orange .nav-link,
+.theme-orange .navbar-brand {
+  color: #ff6a00 !important;
+}
+
+/* Ensure navbar text does not get a background */
+.theme-orange .nav-link,
+.theme-orange .navbar-brand {
+  background: transparent !important;
+}
+
+/* Footer links should remain dark, not orange */
+.theme-orange footer a,
+.theme-orange footer .nav-link {
+  color: #344767 !important;
+}
+
+/* Modal (popover) theming */
+.theme-orange .modal-content {
+  background-color: #fff3e6;
+}
+.theme-orange .modal-header,
+.theme-orange .modal-footer {
+  border-color: #ffc89e;
+}
+.theme-orange .modal-title {
+  color: #344767;
+}
+.theme-orange .table thead th {
+  background-color: #ffe7d1 !important;
+}
+
+/* Table header tint */
+.theme-orange thead th {
+  background-color: #ffe7d1 !important;
+}
+
+/* Borders */
+.theme-orange .border,
+.theme-orange .card,
+.theme-orange .table,
+.theme-orange .form-control {
+  border-color: #ffc89e !important;
+}
+
+

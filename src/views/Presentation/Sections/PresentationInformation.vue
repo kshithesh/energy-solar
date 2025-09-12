@@ -15,6 +15,7 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
               icon="touch_app"
               title="Lowest Pricing as USP"
               description="High-quality, reliable, and eco-friendly solutions."
+              class="orange-gradient-overlay"
             />
 
             <RotatingCardBack
@@ -33,12 +34,12 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
         <div class="col-lg-6 ms-auto">
           <div class="row justify-content-start">
             <DefaultInfoCard
-              icon="content_copy"
+              :icon="{ component: 'content_copy', color: 'warning', size: '3xl' }"
               title="High-Quality Standards"
               description="We use top-grade panels and components from leading manufacturers to ensure durability and performance."
             />
             <DefaultInfoCard
-              icon="flip_to_front"
+              :icon="{ component: 'flip_to_front', color: 'warning', size: '3xl' }"
               title="Experience & Expertise"
               description="With over 800 MW of ground-mounted projects, our skilled professionals have extensive knowledge in solar technology."
             />
@@ -46,13 +47,13 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
           <div class="row justify-content-start mt-5">
             <DefaultInfoCard
               class="mt-3"
-              icon="price_change"
+              :icon="{ component: 'price_change', color: 'warning', size: '3xl' }"
               title="Eco-Friendly Commitment"
               description="Our solutions reduce electricity costs and carbon footprints, supporting a sustainable planet."
             />
             <DefaultInfoCard
               class="mt-3"
-              icon="devices"
+              :icon="{ component: 'devices', color: 'warning', size: '3xl' }"
               title="Quick Installation and Service"
               description="We promise installation within 100 days, a 25-year plant service promise, and a site visit within 24 hours."
             />
@@ -62,3 +63,38 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
     </div>
   </section>
 </template>
+
+<style scoped>
+.orange-gradient-overlay {
+  position: relative;
+}
+
+.orange-gradient-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%);
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.orange-gradient-overlay > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Alternative approach - if the component uses CSS variables */
+:deep(.rotating-card-front) {
+  --gradient-color-1: rgba(255, 152, 0, 0.8);
+  --gradient-color-2: rgba(255, 87, 34, 0.9);
+  background: linear-gradient(135deg, var(--gradient-color-1) 0%, var(--gradient-color-2) 100%) !important;
+}
+
+/* Another alternative - targeting specific classes if they exist */
+:deep(.bg-gradient-success) {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important;
+}
+</style>

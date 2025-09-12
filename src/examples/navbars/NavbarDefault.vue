@@ -7,7 +7,6 @@ import { useWindowsWidth } from "../../assets/js/useWindowsWidth";
 import ArrDark from "@/assets/img/down-arrow-dark.svg";
 import downArrow from "@/assets/img/down-arrow.svg";
 import DownArrWhite from "@/assets/img/down-arrow-white.svg";
-
 const props = defineProps({
   action: {
     type: Object,
@@ -155,7 +154,7 @@ watch(
         class="collapse navbar-collapse w-100 pt-3 pb-2 py-lg-0"
         id="navigation"
       >
-        <ul class="navbar-nav navbar-nav-hover ms-auto">
+        <ul class="navbar-nav navbar-nav-hover ms-auto">          
           <!-- <li class="nav-item dropdown dropdown-hover mx-2">
             <a
               role="button"

@@ -8,6 +8,7 @@ import "./assets/css/nucleo-icons.css";
 import "./assets/css/nucleo-svg.css";
 
 import materialKit from "./material-kit";
+import "./assets/css/orange-theme.css";
 
 const app = createApp(App);
 
