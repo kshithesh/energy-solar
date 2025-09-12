@@ -40,9 +40,9 @@ let reportPopover = null;
 
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
-  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c44ab3d22e2ce6b44896ae/data";
-  const apiKey = "50e565c1b9bcd047f05583fcc72e26b5";
-  const apiSecret = "cdaf891c7a4b6a85426bcd3107b7fb91300d4c51469cf7cd2430ca0a9449946b";
+  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c45b9df707ce7aa5b86933/data";
+  const apiKey = "e2b5ae315681e9ce7f24b503c6eaea1d";
+  const apiSecret = "6bf017cc571d036549cd2c8922587904aa54bae9d6703605e78231ece3dea57e";
 
   try {
     const url = new URL(baseUrl);
