@@ -40,10 +40,9 @@ let reportPopover = null;
 
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
-  // const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c430cd8b068cc7af7f3960/data";
-  const baseUrl = "https://e5da76a9b66f.ngrok-free.app/api/external/collection/68c430cd8b068cc7af7f3960/data";
-  const apiKey = "fd5ff7862e6bdfad12b4a82f5bb61b25";
-  const apiSecret = "3df7afd85a7b2a3d3f6364158bd23dcf76fae45f6c99372a61336ebd6fcc3a40";
+  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c44ab3d22e2ce6b44896ae/data";
+  const apiKey = "50e565c1b9bcd047f05583fcc72e26b5";
+  const apiSecret = "cdaf891c7a4b6a85426bcd3107b7fb91300d4c51469cf7cd2430ca0a9449946b";
 
   try {
     const url = new URL(baseUrl);
@@ -65,15 +64,21 @@ async function searchExternalApi(query) {
     const response = await fetch(url.toString(), { method: "GET", headers });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "Unknown error");
-      throw new Error(`SPDCL API request failed: ${response.status} - ${errorText}`);
+      // const errorText = await response.text().catch(() => "Unknown error");
+      // throw new Error(`SPDCL API request failed: ${response.status} - ${errorText}`);
+      return null;
     }
+
 
     const data = await response.json();
     console.log("SPDCL API response:", data);
 
     // Return array if response is an object
     if (Array.isArray(data)) return data;
+
+    if(data.data.length > 1 ){
+      return null;
+    }
 
     const possibleArrayKeys = ["data", "results", "items", "records", "documents"];
     for (const key of possibleArrayKeys) {
@@ -299,7 +304,7 @@ function buildStatusPopoverHtml() {
     return '<div class="py-2">Loading status...</div>';
   }
   if (statusError.value) {
-    return `<div class="text-danger small">${statusError.value}</div>`;
+    return `<div class="text-danger small">No data found</div>`;
   }
   const data = statusData.value || {};
   const steps = Array.isArray(data.steps) ? data.steps : [];
