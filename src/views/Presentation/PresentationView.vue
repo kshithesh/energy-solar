@@ -475,18 +475,18 @@ function buildStatusPopoverHtml() {
   `;
 }
 
-// function showReportPopover(event) {
-//   const anchor = event.currentTarget;
-//   const html = buildReportSvg();
-//   if (reportPopover) reportPopover.dispose();
-//   reportPopover = new Popover(anchor, { 
-//     html: true, 
-//     content: html, 
-//     placement: 'top',
-//     customClass: 'report-popover'
-//   });
-//   reportPopover.show();
-// }
+ function showReportPopover(event) {
+   const anchor = event.currentTarget;
+   const html = buildReportSvg();
+   if (reportPopover) reportPopover.dispose();
+   reportPopover = new Popover(anchor, { 
+     html: true, 
+     content: html, 
+     placement: 'top',
+     customClass: 'report-popover'
+   });
+   reportPopover.show();
+ }
 
 function buildReportSvg() {
   const item = selectedItem.value;
@@ -588,6 +588,18 @@ function buildReportSvg() {
             <div class="h6 mb-0">${item['Distance of proposed land and sub station (KM)'] || '0'}</div>
             <small>KM Distance</small>
           </div>
+        </div>
+        <div class="col-3">
+            <div class="bg-warning bg-gradient text-white rounded p-2 text-center">
+                <div class="h6 mb-0">${item.unitsGenerated || '0'}</div>
+                <small>Units Gen.</small>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="bg-danger bg-gradient text-white rounded p-2 text-center">
+                <div class="h6 mb-0">$${item.revenueGenerated || '0'}</div>
+                <small>Revenue</small>
+            </div>
         </div>
       </div>
 
@@ -798,15 +810,20 @@ function trackStatus(item) {
 
 // View report for a specific item
 function viewReport(item) {
-  // Set this item as selected and show report
-  results.value = [item];
-  
-  // Create a mock event object for the existing showReportPopover function
-  const mockEvent = {
+  if (!item.unitsGenerated) {
+    item.unitsGenerated = Math.floor(Math.random() * 5000) + 1000; // Random number between 1000 and 6000
+}
+
+// Check if revenue generated data exists, if not, create random data
+if (!item.revenueGenerated) {
+    item.revenueGenerated = (Math.random() * 100000).toFixed(2); // Random number up to 100,000 with 2 decimal places
+}
+
+// Now call the popover function with the updated item
+const mockEvent = {
     currentTarget: document.querySelector('.btn[title="View Report"]') || document.body
-  };
-  
-  showReportPopover(mockEvent);
+};
+showReportPopover(mockEvent, item);
 }
 
 // Export functionality
@@ -1035,71 +1052,29 @@ onUnmounted(() => {
           </h6>
           <!-- <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">X</button> -->
         </div>
-        <div class="modal-body">
-          <!-- Client Details (Application-like) -->
-          <div v-if="selectedItem" class="card border mb-4">
-            <div class="card-body position-relative">
-              <h5 class="mb-3 text-center text-uppercase">Energy solar client details</h5>
-              <img
-                v-if="extractImageUrl(selectedItem)"
-                :src="extractImageUrl(selectedItem)"
-                alt="Client photo"
-                class="position-absolute top-0 end-0 m-3 border rounded"
-                style="width:100px;height:120px;object-fit:cover;"
-                loading="lazy"
+        <div class="custom-table-container">
+          <div>
+            <h1>Energy Solar Client Details</h1>
+          </div>
+             <!-- Passport Image -->
+              <img 
+                src="your-passport-image.jpg" 
+                alt="Client Photo" 
+                class="passport-image"
               />
-
-              <div class="row g-3">
-                <div class="col-12 col-md-8">
-                  <div class="row g-2">
-                    <div v-for="pair in detailsPairs" :key="pair.key" class="col-12">
-                      <div class="d-flex align-items-start">
-                        <div class="fw-bold me-2" style="min-width:160px">{{ pair.label }}:</div>
-                        <div class="flex-grow-1">{{ pair.value }}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="d-flex flex-wrap gap-2 mt-4">
-                <button type="button" class="btn btn-dark" @click="fetchStatusAndShow">Track status</button>
-                <!-- <button type="button" class="btn btn-outline-dark" @click="showReportPopover">View report</button> -->
-              </div>
+          <div class="custom-table-header">
+            <div class="header-item">FIELD</div>
+            <div class="header-item value-header">VALUE</div>
+          </div>
+          <div class="custom-table-body">
+            <div class="custom-table-row" v-for="pair in detailsPairs" :key="pair.key">
+              <div class="row-item">{{ pair.label }}</div>
+              <div class="row-item value-item">{{ pair.value }}</div>
             </div>
           </div>
-
-          <!-- Loading State -->
-          <div v-if="isLoading" class="text-center py-4">
-            <div class="spinner-border text-dark" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-2 mb-0">Searching...</p>
-          </div>
-          
-          <!-- Error State -->
-          <div v-if="errorMessage" class="alert d-flex align-items-center" role="alert">
-            <i class="material-icons me-2">error</i>
-            {{ errorMessage }}
-          </div>
-          
-          <!-- No Results State -->
-          <div v-if="!isLoading && results.length === 0 && !errorMessage && hasSearched" class="text-center py-4">
-            <i class="material-icons display-4 text-muted mb-3">search_off</i>
-            <h6 class="mb-1">No results found</h6>
-            <p class="text-muted mb-0">Try a different keyword or check your spelling.</p>
-          </div>
-          
-          <!-- Fallback for non-tabular data -->
-          <div v-else-if="results.length > 0 && enhancedTableColumns.length === 0" class="row">
-            <div v-for="(item, index) in results" :key="index" class="col-12 mb-3">
-              <div class="card">
-                <div class="card-body">
-                  <h6 class="card-title">Result {{ index + 1 }}</h6>
-                  <pre class="bg-light p-3 rounded small">{{ JSON.stringify(item, null, 2) }}</pre>
-                </div>
-              </div>
-            </div>
+          <div class="custom-table-actions">
+            <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchStatusAndShow">Track status</button>
+            <button type="button" class="btn btn-dark" @click="showReportPopover">View report</button>
           </div>
         </div>
         <div class="modal-footer justify-content-between">
@@ -1122,7 +1097,89 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+
+.passport-image {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 80px;    /* adjust size */
+  height: 100px;  /* adjust size */
+  object-fit: cover;
+  border: 2px solid #333;
+  border-radius: 4px;
+}
 /* Enhanced Table Styles */
+ .custom-table-container {
+    /* background-color: #2e2e34; */
+    border-radius: 12px;
+    /* box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); */
+    overflow: hidden;
+    margin: 20px;
+    color: #000;
+    font-family: Arial, sans-serif;
+  }
+
+  .custom-table-header {
+    display: flex;
+    padding: 15px 20px;
+    background-color: #f0ddb4;
+    /* border-bottom: 1px solid #4a4a52; */
+  }
+
+  .header-item {
+    flex: 1;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.9em;
+    color: #000;
+  }
+
+  .value-header {
+    flex: 2; /* Adjust as needed for your specific data */
+  }
+  
+  .custom-table-body {
+    padding: 0 20px;
+  }
+
+  .custom-table-row {
+    display: flex;
+    padding: 12px 0;
+    border-bottom: 1px solid #ffc89e;
+  }
+
+  .custom-table-row:last-child {
+    border-bottom: none;
+  }
+
+  .row-item {
+    flex: 1;
+    font-size: 0.95em;
+    color: #000;
+  }
+
+  .value-item {
+    flex: 2; /* Adjust as needed */
+    word-break: break-word;
+  }
+
+  .custom-table-actions {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    border-top: 1px solid #ffc89e;
+  }
+
+  .custom-table-actions .btn {
+    background-color: #ff9800;
+    border-color: #ff9800;
+    color: #1e1e1e;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
 .table-responsive {
   max-height: 60vh;
   overflow-y: auto;
