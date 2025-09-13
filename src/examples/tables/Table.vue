@@ -30,7 +30,7 @@ defineProps({
       <div class="row justify-content-center">
         <div class="col-lg-10">
           <div class="card">
-            <div class="table-responsive">
+            <!-- <div class="table-responsive">
               <table class="table align-items-center mb-0">
                 <thead>
                   <tr>
@@ -102,7 +102,7 @@ defineProps({
                   </tr>
                 </tbody>
               </table>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>

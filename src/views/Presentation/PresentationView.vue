@@ -38,6 +38,11 @@ let heroModal = null;
 let statusPopover = null;
 let reportPopover = null;
 
+// New reactive variables for enhanced table
+const tableSearchQuery = ref('');
+const sortColumn = ref('');
+const sortDirection = ref('asc');
+
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
   const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c45b9df707ce7aa5b86933/data";
@@ -64,11 +69,8 @@ async function searchExternalApi(query) {
     const response = await fetch(url.toString(), { method: "GET", headers });
 
     if (!response.ok) {
-      // const errorText = await response.text().catch(() => "Unknown error");
-      // throw new Error(`SPDCL API request failed: ${response.status} - ${errorText}`);
       return null;
     }
-
 
     const data = await response.json();
     console.log("SPDCL API response:", data);
@@ -104,6 +106,67 @@ const tableColumns = computed(() => {
     key: key,
     label: formatColumnLabel(key)
   }));
+});
+
+// Enhanced table columns with better formatting
+const enhancedTableColumns = computed(() => {
+  if (!results.value || results.value.length === 0) {
+    return [];
+  }
+  
+  const firstItem = results.value[0];
+  const allColumns = Object.keys(firstItem).map(key => ({
+    key: key,
+    label: getFriendlyLabelForKey(key),
+    sortable: true,
+    searchable: true
+  }));
+  
+  // Prioritize important columns first
+  const priorityColumns = [
+    'sr_no',
+    'farmer_name(applicant_name)',
+    'application_no.',
+    'mobile_number',
+    'capacity_of_solar_power_applied_(kw)',
+    'location_circle',
+    'applicant_category',
+    'installation_solar_power_plant'
+  ];
+  
+  const sortedColumns = [];
+  
+  // Add priority columns first
+  priorityColumns.forEach(priorityKey => {
+    const column = allColumns.find(col => col.key === priorityKey);
+    if (column) {
+      sortedColumns.push(column);
+    }
+  });
+  
+  // Add remaining columns
+  allColumns.forEach(column => {
+    if (!sortedColumns.find(col => col.key === column.key)) {
+      sortedColumns.push(column);
+    }
+  });
+  
+  return sortedColumns;
+});
+
+// Table search/filter functionality
+const filteredResults = computed(() => {
+  if (!tableSearchQuery.value.trim()) {
+    return results.value;
+  }
+  
+  const query = tableSearchQuery.value.toLowerCase().trim();
+  
+  return results.value.filter(item => {
+    return Object.values(item).some(value => {
+      return String(value).toLowerCase().includes(query);
+    });
+  });
 });
 
 // Helper function to format column labels
@@ -162,7 +225,6 @@ const preferredGroups = [
 
 // Show IDs as the user requested; exclude only image-like keys
 const excludedKeys = [];
-
 const imageCandidateKeys = ['photo','image','imageUrl','avatar','profileImage','picture','img','logo'];
 
 function groupIndexForKey(key) {
@@ -241,51 +303,51 @@ const statusData = ref(null);
 // Updated status fetching function
 async function fetchStatusAndShow(event) {
   const anchor = event.currentTarget;
-  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c430cd8b068cc7af7f3960/data";
-  const apiKey = "fd5ff7862e6bdfad12b4a82f5bb61b25";
-  const apiSecret = "3df7afd85a7b2a3d3f6364158bd23dcf76fae45f6c99372a61336ebd6fcc3a40";
-  
   statusLoading.value = true;
   statusError.value = "";
   statusData.value = null;
 
   try {
-    const url = new URL(baseUrl);
-    // Try to add an identifier if present
-    const id = selectedItem.value?.sr_no || selectedItem.value?.["application_no."] || '';
-    if (id) {
-      const filterQuery = {
-        $or: [
-          { "sr_no": id },
-          { "application_no.": id }
-        ]
-      };
-      url.searchParams.set('filter', JSON.stringify(filterQuery));
+    // Use the current selected item's status data directly
+    const item = selectedItem.value;
+    if (!item) {
+      throw new Error('No item selected');
     }
 
-    const headers = {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "x-api-secret": apiSecret
-    };
+    // Extract status information from the current data
+    const trackingSteps = [
+      {
+        label: 'Application Submitted',
+        done: !!item['Application No'],
+        date: item['Onboard Date'] ? new Date(item['Onboard Date']).toLocaleDateString() : null
+      },
+      {
+        label: 'EMD Payment Completed',
+        done: !!item['EMD Paid Capacity (MW)'] && item['EMD Paid Capacity (MW)'] !== '',
+        capacity: item['EMD Paid Capacity (MW)']
+      },
+      {
+        label: 'LOA Issued',
+        done: !!item['LOA Issued Capacity (MW)'] && item['LOA Issued Capacity (MW)'] !== '',
+        capacity: item['LOA Issued Capacity (MW)']
+      },
+      {
+        label: 'Installation Completed',
+        done: item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant'),
+        type: item['Installation Solar Power Plant']
+      }
+    ];
 
-    const resp = await fetch(url.toString(), { headers });
-    if (!resp.ok) throw new Error(`Request failed: ${resp.status}`);
-    const data = await resp.json().catch(() => ({}));
-    
-    // Extract status information from SPDCL data
-    const record = Array.isArray(data) ? data[0] : data;
     statusData.value = {
-      currentStatus: record?.["reject/pending_reason"] || 'Processing',
-      updatedAt: new Date().toISOString(),
-      applicationNo: record?.["application_no."],
-      capacity: record?.["capacity_of_solar_power_applied_(kw)"],
-      steps: [
-        { label: 'Application Submitted', done: !!record?.["application_no."] },
-        { label: 'EMD Payment', done: !!record?.["emd_paid_capacity_(mw)"] },
-        { label: 'LOA Issued', done: !!record?.["loa_issued_capacity_(mw)"] },
-        { label: 'Installation', done: record?.["installation_solar_power_plant"] === 'Yes' }
-      ]
+      currentStatus: item['Status'] || 'Processing',
+      applicationNo: item['Application No'],
+      clientId: item['ClientID'],
+      capacity: item['Capacity of Solar Power applied (KW)'],
+      updatedAt: item['updatedAt'] || new Date().toISOString(),
+      pendingReason: item['Reject/pending Reason'],
+      trackingStatus: item['Application Track Status'] || [],
+      steps: trackingSteps,
+      location: `${item['Location Sub Station']}, ${item['Location Division']}`
     };
   } catch (e) {
     statusError.value = e?.message || 'Failed to fetch status';
@@ -294,60 +356,293 @@ async function fetchStatusAndShow(event) {
     await nextTick();
     const html = buildStatusPopoverHtml();
     if (statusPopover) statusPopover.dispose();
-    statusPopover = new Popover(anchor, { html: true, content: html, placement: 'top' });
+    statusPopover = new Popover(anchor, { 
+      html: true, 
+      content: html, 
+      placement: 'top',
+      customClass: 'status-popover'
+    });
     statusPopover.show();
   }
 }
 
 function buildStatusPopoverHtml() {
   if (statusLoading.value) {
-    return '<div class="py-2">Loading status...</div>';
+    return '<div class="py-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div><div class="mt-2">Loading status...</div></div>';
   }
+  
   if (statusError.value) {
-    return `<div class="text-danger small">No data found</div>`;
+    return `<div class="text-danger small p-2"><i class="material-icons me-1" style="font-size:16px">error</i>Error: ${statusError.value}</div>`;
   }
+  
   const data = statusData.value || {};
   const steps = Array.isArray(data.steps) ? data.steps : [];
-  const stepsHtml = steps.map(s => `<li class="mb-1">${s.done ? '✅' : '⏳'} ${s.label}</li>`).join('');
+  
+  // Calculate progress percentage
+  const completedSteps = steps.filter(s => s.done).length;
+  const progressPercent = Math.round((completedSteps / steps.length) * 100);
+  
+  // Build status indicator
+  const statusColor = data.currentStatus === 'Active' ? '#28a745' : 
+                     data.currentStatus === 'Pending' ? '#ffc107' : 
+                     data.currentStatus === 'Rejected' ? '#dc3545' : '#6c757d';
+  
+  const stepsHtml = steps.map((step, index) => {
+    const icon = step.done ? '✅' : '⏳';
+    const extraInfo = step.capacity ? ` (${step.capacity} MW)` : 
+                     step.date ? ` - ${step.date}` : 
+                     step.type && step.done ? ` - ${step.type}` : '';
+    
+    return `
+      <div class="d-flex align-items-start mb-2">
+        <span class="me-2">${icon}</span>
+        <div class="flex-grow-1">
+          <div class="${step.done ? 'fw-bold text-success' : 'text-muted'}">${step.label}</div>
+          ${extraInfo ? `<small class="text-muted">${extraInfo}</small>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
   return `
-    <div style="max-width:260px">
-      <div class="fw-bold mb-1">Status: ${data.currentStatus || 'N/A'}</div>
-      <div class="text-muted small mb-2">Updated: ${data.updatedAt ? new Date(data.updatedAt).toLocaleString() : '-'}</div>
-      <ul class="ps-3 mb-0">${stepsHtml}</ul>
+    <div style="max-width:350px; min-width:300px;" class="p-2 position-relative">
+      <!-- Close Button -->
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
+              onclick="closeStatusPopover()" 
+              style="z-index: 1000; width: 16px; height: 16px; font-size: 10px;"
+              aria-label="Close"></button>
+      
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 pe-4">
+        <div>
+          <div class="fw-bold h6 mb-1">Application Status</div>
+          <div class="small text-muted">${data.applicationNo || 'N/A'}</div>
+        </div>
+        <div class="text-end">
+          <span class="badge px-2 py-1" style="background-color:${statusColor}; color:white;">
+            ${data.currentStatus || 'Unknown'}
+          </span>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <small class="text-muted">Progress</small>
+          <small class="fw-bold">${progressPercent}%</small>
+        </div>
+        <div class="progress" style="height: 6px;">
+          <div class="progress-bar bg-success" style="width: ${progressPercent}%"></div>
+        </div>
+      </div>
+
+      <!-- Client Info -->
+      <div class="row g-2 mb-3 small">
+        <div class="col-6">
+          <div class="text-muted">Client ID</div>
+          <div class="fw-bold">${data.clientId || 'N/A'}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted">Capacity</div>
+          <div class="fw-bold">${data.capacity ? data.capacity + ' KW' : 'N/A'}</div>
+        </div>
+      </div>
+
+      <!-- Steps Timeline -->
+      <div class="mb-3">
+        <div class="small fw-bold text-muted mb-2">APPLICATION TIMELINE</div>
+        ${stepsHtml}
+      </div>
+
+      ${data.pendingReason ? `
+        <div class="alert alert-warning py-2 px-3 mb-2">
+          <small><strong>Note:</strong> ${data.pendingReason}</small>
+        </div>
+      ` : ''}
+
+      <!-- Footer -->
+      <div class="border-top pt-2 mt-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            ${data.location ? `📍 ${data.location}` : ''}
+          </small>
+          <small class="text-muted">
+            Updated: ${data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : 'N/A'}
+          </small>
+        </div>
+      </div>
     </div>
   `;
 }
 
-function showReportPopover(event) {
-  const anchor = event.currentTarget;
-  const html = buildReportSvg();
-  if (reportPopover) reportPopover.dispose();
-  reportPopover = new Popover(anchor, { html: true, content: html, placement: 'top' });
-  reportPopover.show();
-}
+// function showReportPopover(event) {
+//   const anchor = event.currentTarget;
+//   const html = buildReportSvg();
+//   if (reportPopover) reportPopover.dispose();
+//   reportPopover = new Popover(anchor, { 
+//     html: true, 
+//     content: html, 
+//     placement: 'top',
+//     customClass: 'report-popover'
+//   });
+//   reportPopover.show();
+// }
 
 function buildReportSvg() {
-  // Simple dummy bar chart
-  const bars = [60, 90, 40, 75, 55];
-  const barWidth = 22;
-  const gap = 10;
-  const height = 120;
-  const svgBars = bars
-    .map((v, i) => {
-      const x = 20 + i * (barWidth + gap);
-      const y = height - v;
-      return `<rect x="${x}" y="${y}" width="${barWidth}" height="${v}" fill="#344767" rx="4" />`;
-    })
-    .join('');
+  const item = selectedItem.value;
+  if (!item) return '<div class="p-2">No data available</div>';
+
+  // Extract meaningful data for the report
+  const appliedCapacity = parseFloat(item['Capacity of Solar Power applied (KW)']) || 0;
+  const emdCapacity = parseFloat(item['EMD Paid Capacity (MW)']) || 0;
+  const loaCapacity = parseFloat(item['LOA Issued Capacity (MW)']) || 0;
+  const landCoverage = parseFloat(item['Land Coverage (Acres)']) || 0;
+  
+  // Convert MW to KW for consistency
+  const emdCapacityKW = emdCapacity * 1000;
+  const loaCapacityKW = loaCapacity * 1000;
+  
+  // Calculate progress percentages
+  const maxCapacity = Math.max(appliedCapacity, emdCapacityKW, loaCapacityKW, 1000);
+  const appliedPercent = (appliedCapacity / maxCapacity) * 100;
+  const emdPercent = (emdCapacityKW / maxCapacity) * 100;
+  const loaPercent = (loaCapacityKW / maxCapacity) * 100;
+  
+  // Chart dimensions
+  const chartWidth = 300;
+  const chartHeight = 200;
+  const barWidth = 45;
+  const barSpacing = 15;
+  const startX = 30;
+  const maxBarHeight = 140;
+
+  // Create bars data
+  const bars = [
+    { label: 'Applied', value: appliedCapacity, percent: appliedPercent, color: '#344767' },
+    { label: 'EMD Paid', value: emdCapacityKW, percent: emdPercent, color: '#f39c12' },
+    { label: 'LOA Issued', value: loaCapacityKW, percent: loaPercent, color: '#27ae60' }
+  ];
+
+  const barsHtml = bars.map((bar, index) => {
+    const x = startX + index * (barWidth + barSpacing);
+    const barHeight = (bar.percent / 100) * maxBarHeight;
+    const y = chartHeight - 40 - barHeight; // 40px for bottom margin
+    
+    return `
+      <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" 
+            fill="${bar.color}" rx="4" opacity="0.8"/>
+      <text x="${x + barWidth/2}" y="${chartHeight - 20}" 
+            text-anchor="middle" font-size="10" fill="#666">${bar.label}</text>
+      <text x="${x + barWidth/2}" y="${y - 8}" 
+            text-anchor="middle" font-size="9" fill="#333" font-weight="bold">
+            ${bar.value > 0 ? (bar.value >= 1000 ? (bar.value/1000).toFixed(1) + 'MW' : bar.value + 'KW') : '0'}
+      </text>
+    `;
+  }).join('');
+
+  // Pie chart for land usage (simple representation)
+  const pieRadius = 35;
+  const pieCenterX = chartWidth - 70;
+  const pieCenterY = 60;
+  const usedLand = landCoverage;
+  const totalLand = landCoverage * 1.5; // Assume total available is 1.5x used
+  const usedAngle = (usedLand / totalLand) * 360;
+  
+  const pieSlice = usedAngle > 0 ? `
+    <path d="M ${pieCenterX} ${pieCenterY} L ${pieCenterX + pieRadius} ${pieCenterY} 
+             A ${pieRadius} ${pieRadius} 0 ${usedAngle > 180 ? 1 : 0} 1 
+             ${pieCenterX + pieRadius * Math.cos(usedAngle * Math.PI / 180)} 
+             ${pieCenterY + pieRadius * Math.sin(usedAngle * Math.PI / 180)} Z"
+          fill="#e74c3c" opacity="0.7"/>
+  ` : '';
 
   return `
-    <div style="max-width:320px">
-      <div class="fw-bold mb-2">Client Report (dummy)</div>
-      <svg width="300" height="${height + 20}" viewBox="0 0 300 ${height + 20}">
-        <rect x="0" y="0" width="300" height="${height + 20}" fill="#f8f9fa" rx="8" />
-        ${svgBars}
-        <text x="20" y="${height + 15}" font-size="10" fill="#6c757d">Performance</text>
-      </svg>
+    <div style="max-width:380px; min-width:350px;" class="p-3 position-relative">
+      <!-- Close Button -->
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
+              onclick="closeReportPopover()" 
+              style="z-index: 1000; width: 16px; height: 16px; font-size: 10px;"
+              aria-label="Close"></button>
+      
+      <div class="fw-bold mb-3 h6 text-center pe-4">
+        <i class="material-icons me-1" style="font-size:18px">assessment</i>
+        Project Analytics Report
+      </div>
+      
+      <!-- Key Metrics Cards -->
+      <div class="row g-2 mb-3">
+        <div class="col-4">
+          <div class="bg-primary bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">${appliedCapacity ? (appliedCapacity/1000).toFixed(1) : '0'}</div>
+            <small>MW Applied</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="bg-success bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">${landCoverage || '0'}</div>
+            <small>Acres</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="bg-info bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">${item['Distance of proposed land and sub station (KM)'] || '0'}</div>
+            <small>KM Distance</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Container -->
+      <div class="bg-light rounded p-2 mb-3">
+        <svg width="${chartWidth}" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}">
+          <!-- Grid lines -->
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="1" opacity="0.3"/>
+            </pattern>
+          </defs>
+          <rect width="${chartWidth}" height="${chartHeight}" fill="url(#grid)" />
+          
+          <!-- Title -->
+          <text x="${chartWidth/2}" y="20" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">
+            Capacity Analysis (KW/MW)
+          </text>
+          
+          <!-- Bar Chart -->
+          ${barsHtml}
+          
+          <!-- Pie Chart for Land Usage -->
+          <text x="${pieCenterX}" y="30" text-anchor="middle" font-size="10" fill="#666">Land Usage</text>
+          <circle cx="${pieCenterX}" cy="${pieCenterY}" r="${pieRadius}" fill="#ecf0f1"/>
+          ${pieSlice}
+          <circle cx="${pieCenterX}" cy="${pieCenterY}" r="15" fill="white"/>
+          <text x="${pieCenterX}" y="${pieCenterY + 3}" text-anchor="middle" font-size="8" fill="#333">
+            ${usedLand.toFixed(1)}
+          </text>
+          <text x="${pieCenterX}" y="${pieCenterY + 12}" text-anchor="middle" font-size="6" fill="#666">
+            acres
+          </text>
+        </svg>
+      </div>
+
+      <!-- Status Summary -->
+      <div class="row g-2 small">
+        <div class="col-6">
+          <div class="text-muted">Location</div>
+          <div class="fw-bold">${item['Location Sub Station'] || 'N/A'}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted">Category</div>
+          <div class="fw-bold">${item['Applicant Category'] || 'N/A'}</div>
+        </div>
+      </div>
+
+      <!-- Footer Note -->
+      <div class="border-top pt-2 mt-3">
+        <small class="text-muted d-block text-center">
+          <i class="material-icons me-1" style="font-size:14px">info</i>
+          Generated on ${new Date().toLocaleDateString()}
+        </small>
+      </div>
     </div>
   `;
 }
@@ -375,6 +670,37 @@ function getCellValue(item, column) {
   return String(value);
 }
 
+// Enhanced cell value formatter with status styling
+function getCellValueFormatted(item, column) {
+  const value = getCellValue(item, column);
+  
+  // Add status styling for specific columns
+  if (column.key.toLowerCase().includes('status') || 
+      column.key.toLowerCase().includes('reject') ||
+      column.key.toLowerCase().includes('pending')) {
+    
+    if (value && value.toLowerCase().includes('active')) {
+      return `<span class="status-active">${value}</span>`;
+    } else if (value && (value.toLowerCase().includes('pending') || value.toLowerCase().includes('processing'))) {
+      return `<span class="status-pending">${value}</span>`;
+    } else if (value && (value.toLowerCase().includes('reject') || value.toLowerCase().includes('cancel'))) {
+      return `<span class="status-rejected">${value}</span>`;
+    }
+  }
+  
+  // Add email styling
+  if (isEmail(value)) {
+    return `<a href="mailto:${value}" class="text-decoration-none">${value}</a>`;
+  }
+  
+  // Add URL styling
+  if (isUrl(value)) {
+    return `<a href="${value}" target="_blank" class="text-decoration-none" rel="noopener noreferrer">View Link</a>`;
+  }
+  
+  return value;
+}
+
 // Helper function to check if a value is a URL
 function isUrl(value) {
   if (typeof value !== 'string') return false;
@@ -397,6 +723,160 @@ function isEmail(value) {
 function truncateText(text, maxLength = 100) {
   if (typeof text !== 'string') return text;
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+// Table sorting functionality
+function sortTable(column) {
+  if (sortColumn.value === column.key) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColumn.value = column.key;
+    sortDirection.value = 'asc';
+  }
+  
+  results.value.sort((a, b) => {
+    let aVal = getCellValue(a, column);
+    let bVal = getCellValue(b, column);
+    
+    // Convert to string for comparison
+    aVal = String(aVal).toLowerCase();
+    bVal = String(bVal).toLowerCase();
+    
+    // Numeric comparison for numbers
+    if (!isNaN(aVal) && !isNaN(bVal)) {
+      aVal = parseFloat(aVal);
+      bVal = parseFloat(bVal);
+    }
+    
+    let comparison = 0;
+    if (aVal > bVal) {
+      comparison = 1;
+    } else if (aVal < bVal) {
+      comparison = -1;
+    }
+    
+    return sortDirection.value === 'desc' ? comparison * -1 : comparison;
+  });
+}
+
+// View detailed information for a specific item
+function viewDetails(item, index) {
+  // Update the selectedItem to show this specific item in the client details section
+  results.value = [item]; // This will make the selectedItem computed show this item
+  
+  // Scroll to the top of the modal to show the client details
+  const modalBody = document.querySelector('#heroSearchModal .modal-body');
+  if (modalBody) {
+    modalBody.scrollTop = 0;
+  }
+  
+  // Optional: Add a highlight effect
+  setTimeout(() => {
+    const clientDetailsCard = document.querySelector('#heroSearchModal .card.border.mb-4');
+    if (clientDetailsCard) {
+      clientDetailsCard.style.border = '2px solid #007bff';
+      clientDetailsCard.style.transition = 'all 0.3s ease';
+      setTimeout(() => {
+        clientDetailsCard.style.border = '';
+      }, 2000);
+    }
+  }, 100);
+}
+
+// Track status for a specific item
+function trackStatus(item) {
+  // Set this item as selected and trigger status tracking
+  results.value = [item];
+  
+  // Create a mock event object for the existing fetchStatusAndShow function
+  const mockEvent = {
+    currentTarget: document.querySelector('.btn[title="Track Status"]') || document.body
+  };
+  
+  fetchStatusAndShow(mockEvent);
+}
+
+// View report for a specific item
+function viewReport(item) {
+  // Set this item as selected and show report
+  results.value = [item];
+  
+  // Create a mock event object for the existing showReportPopover function
+  const mockEvent = {
+    currentTarget: document.querySelector('.btn[title="View Report"]') || document.body
+  };
+  
+  showReportPopover(mockEvent);
+}
+
+// Export functionality
+function exportToCSV() {
+  if (!results.value || results.value.length === 0) return;
+  
+  const headers = enhancedTableColumns.value.map(col => col.label);
+  const csvContent = [
+    headers.join(','),
+    ...results.value.map(item => 
+      enhancedTableColumns.value.map(col => {
+        const value = getCellValue(item, col);
+        // Escape quotes and wrap in quotes if contains comma
+        return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
+      }).join(',')
+    )
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `energy_solar_data_${new Date().getTime()}.csv`;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
+
+// Print functionality
+function printTable() {
+  const printContent = `
+    <html>
+    <head>
+      <title>Energy Solar Data Report</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        h1 { color: #344767; text-align: center; }
+        .report-info { margin-bottom: 20px; }
+      </style>
+    </head>
+    <body>
+      <h1>Energy Solar Data Report</h1>
+      <div class="report-info">
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Total Records:</strong> ${results.value.length}</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            ${enhancedTableColumns.value.slice(0, 8).map(col => `<th>${col.label}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${results.value.map(item => `
+            <tr>
+              ${enhancedTableColumns.value.slice(0, 8).map(col => `<td>${getCellValue(item, col)}</td>`).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+  
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(printContent);
+  printWindow.document.close();
+  printWindow.print();
 }
 
 async function onHeroSearch() {
@@ -459,6 +939,23 @@ onMounted(() => {
   if (el) {
     heroModal = new Modal(el);
   }
+  
+  // Add global functions for closing popovers
+  window.closeStatusPopover = () => {
+    if (statusPopover) {
+      statusPopover.hide();
+      statusPopover.dispose();
+      statusPopover = null;
+    }
+  };
+  
+  window.closeReportPopover = () => {
+    if (reportPopover) {
+      reportPopover.hide();
+      reportPopover.dispose();
+      reportPopover = null;
+    }
+  };
 });
 
 onUnmounted(() => {
@@ -466,6 +963,21 @@ onUnmounted(() => {
     heroModal.hide();
     heroModal = null;
   }
+  
+  // Clean up popovers
+  if (statusPopover) {
+    statusPopover.dispose();
+    statusPopover = null;
+  }
+  
+  if (reportPopover) {
+    reportPopover.dispose();
+    reportPopover = null;
+  }
+  
+  // Clean up global functions
+  delete window.closeStatusPopover;
+  delete window.closeReportPopover;
 });
 </script>
 
@@ -521,7 +1033,7 @@ onUnmounted(() => {
             Search results
             <span v-if="results.length > 0" class="badge bg-dark ms-2">{{ results.length }} {{ results.length === 1 ? 'result' : 'results' }}</span>
           </h6>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <!-- <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">X</button> -->
         </div>
         <div class="modal-body">
           <!-- Client Details (Application-like) -->
@@ -552,7 +1064,7 @@ onUnmounted(() => {
 
               <div class="d-flex flex-wrap gap-2 mt-4">
                 <button type="button" class="btn btn-dark" @click="fetchStatusAndShow">Track status</button>
-                <button type="button" class="btn btn-outline-dark" @click="showReportPopover">View report</button>
+                <!-- <button type="button" class="btn btn-outline-dark" @click="showReportPopover">View report</button> -->
               </div>
             </div>
           </div>
@@ -578,101 +1090,8 @@ onUnmounted(() => {
             <p class="text-muted mb-0">Try a different keyword or check your spelling.</p>
           </div>
           
-          <!-- Results Table (generic) -->
-          <div v-if="results.length > 0 && tableColumns.length > 0" class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light sticky-top">
-                <tr>
-                  <th v-for="column in tableColumns" :key="column.key" class="text-nowrap">
-                    {{ column.label }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, index) in results" :key="index">
-                  <td v-for="column in tableColumns" :key="column.key" class="align-middle">
-                    <!-- Handle URLs -->
-                    <template v-if="isUrl(getCellValue(item, column))">
-                      <a 
-                        :href="getCellValue(item, column)" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        class="btn btn-sm btn-outline-dark"
-                      >
-                        <i class="material-icons me-1" style="font-size: 14px;">open_in_new</i>
-                        Open
-                      </a>
-                    </template>
-                    
-                    <!-- Handle Email -->
-                    <template v-else-if="isEmail(getCellValue(item, column))">
-                      <a :href="`mailto:${getCellValue(item, column)}`" class="text-decoration-none">
-                        <i class="material-icons me-1" style="font-size: 14px;">email</i>
-                        {{ getCellValue(item, column) }}
-                      </a>
-                    </template>
-                    
-                    <!-- Handle Images -->
-                    <template v-else-if="column.key.toLowerCase().includes('image') || column.key.toLowerCase().includes('img') || column.key.toLowerCase().includes('photo')">
-                      <img 
-                        v-if="isUrl(getCellValue(item, column))" 
-                        :src="getCellValue(item, column)" 
-                        :alt="column.label"
-                        class="img-thumbnail"
-                        style="max-width: 60px; max-height: 60px; object-fit: cover;"
-                        loading="lazy"
-                      />
-                      <span v-else class="text-muted">{{ truncateText(getCellValue(item, column), 50) }}</span>
-                    </template>
-                    
-                    <!-- Handle Boolean values -->
-                    <template v-else-if="typeof item[column.key] === 'boolean'">
-                      <span :class="item[column.key] ? 'badge bg-success' : 'badge bg-secondary'">
-                        <i class="material-icons me-1" style="font-size: 12px;">
-                          {{ item[column.key] ? 'check' : 'close' }}
-                        </i>
-                        {{ getCellValue(item, column) }}
-                      </span>
-                    </template>
-                    
-                    <!-- Handle Numbers -->
-                    <template v-else-if="typeof item[column.key] === 'number'">
-                      <span class="fw-medium">{{ getCellValue(item, column) }}</span>
-                    </template>
-                    
-                    <!-- Handle Arrays -->
-                    <template v-else-if="Array.isArray(item[column.key])">
-                      <div class="d-flex flex-wrap gap-1">
-                        <span 
-                          v-for="(arrayItem, arrayIndex) in item[column.key].slice(0, 3)" 
-                          :key="arrayIndex" 
-                          class="badge bg-light text-dark"
-                        >
-                          {{ arrayItem }}
-                        </span>
-                        <span v-if="item[column.key].length > 3" class="badge bg-secondary">
-                          +{{ item[column.key].length - 3 }} more
-                        </span>
-                      </div>
-                    </template>
-                    
-                    <!-- Handle Regular Text -->
-                    <template v-else>
-                      <span 
-                        :title="getCellValue(item, column)"
-                        class="text-break"
-                      >
-                        {{ truncateText(getCellValue(item, column), 100) }}
-                      </span>
-                    </template>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
           <!-- Fallback for non-tabular data -->
-          <div v-else-if="results.length > 0 && tableColumns.length === 0" class="row">
+          <div v-else-if="results.length > 0 && enhancedTableColumns.length === 0" class="row">
             <div v-for="(item, index) in results" :key="index" class="col-12 mb-3">
               <div class="card">
                 <div class="card-body">
@@ -703,9 +1122,42 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Enhanced Table Styles */
 .table-responsive {
   max-height: 60vh;
   overflow-y: auto;
+  border-radius: 0 0 8px 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table {
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.table thead th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  color: #344767 !important;
+  border-bottom: 2px solid #e9ecef;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.hover-row:hover {
+  background-color: #f8f9fa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cell-content {
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .sticky-top {
@@ -718,6 +1170,353 @@ onUnmounted(() => {
   word-break: break-word;
 }
 
+/* Enhanced Header Styles */
+.sortable-header {
+  transition: all 0.2s ease;
+}
+
+.sortable-header:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  transform: translateY(-1px);
+}
+
+.sortable-header:active {
+  transform: translateY(0);
+}
+
+/* Custom Action Buttons */
+.btn-group .btn {
+  border-radius: 6px;
+  margin: 0 1px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-group .btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-group .btn:hover::before {
+  left: 100%;
+}
+
+.btn-outline-primary:hover {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  border-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.btn-outline-success:hover {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.btn-outline-info:hover {
+  background: linear-gradient(135deg, #17a2b8, #117a8b);
+  border-color: #117a8b;
+  transform: translateY(-1px);
+}
+
+/* Tablet Card Styles */
+.tablet-card {
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent !important;
+}
+
+.tablet-card:hover {
+  background-color: #f8f9fa;
+  border-left-color: #007bff !important;
+  transform: translateX(2px);
+}
+
+/* Mobile Card Enhancements */
+.mobile-card {
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent !important;
+}
+
+.mobile-card:hover {
+  background-color: #f8f9fa;
+  border-left-color: #007bff !important;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-card .card-title {
+  font-size: 1rem;
+  color: #344767;
+}
+
+.mobile-card .badge {
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Enhanced Card Header */
+.bg-gradient-dark {
+  background: linear-gradient(135deg, #344767 0%, #2c3e50 100%);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Search Input Enhancement */
+.input-group-sm .form-control {
+  font-size: 0.875rem;
+  border-radius: 6px 0 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.input-group-sm .input-group-text {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Status Badge Enhancements */
+.status-active,
+.status-pending,
+.status-rejected {
+  display: inline-block;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+}
+
+.status-active { 
+  color: #28a745; 
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.status-pending { 
+  color: #ffc107; 
+  background: rgba(255, 193, 7, 0.1);
+}
+
+.status-rejected { 
+  color: #dc3545; 
+  background: rgba(220, 53, 69, 0.1);
+}
+
+/* Export Button Enhancements */
+.btn-light:hover {
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  border-color: #dee2e6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading Animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.loading-row {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Custom Scrollbar */
+.table-responsive::-webkit-scrollbar,
+.mobile-cards::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.mobile-cards::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.mobile-cards::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #6c757d, #495057);
+  border-radius: 10px;
+  border: 2px solid #f8f9fa;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover,
+.mobile-cards::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #495057, #343a40);
+}
+
+/* Animation for table rows */
+.table tbody tr {
+  animation: slideIn 0.3s ease forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced Popover Styles */
+.status-popover .popover {
+  max-width: 400px !important;
+  border: none;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  border-radius: 12px;
+}
+
+.report-popover .popover {
+  max-width: 420px !important;
+  border: none;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+  border-radius: 12px;
+}
+
+.popover-body {
+  padding: 0 !important;
+  position: relative !important;
+}
+
+.status-popover .popover-arrow::before {
+  border-top-color: #fff;
+}
+
+.report-popover .popover-arrow::before {
+  border-top-color: #fff;
+}
+
+/* Enhanced close button styles */
+.btn-close {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-radius: 50% !important;
+  opacity: 0.8 !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  cursor: pointer !important;
+}
+
+.btn-close:hover {
+  background: rgba(0, 0, 0, 0.2) !important;
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
+.btn-close:focus {
+  box-shadow: 0 0 0 0.2rem rgba(0, 0, 0, 0.1) !important;
+  outline: none !important;
+}
+
+.btn-close:active {
+  background: rgba(0, 0, 0, 0.3) !important;
+  transform: scale(0.95);
+}
+
+/* Popover-specific close button adjustments */
+.popover .btn-close {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  z-index: 1050 !important;
+  background-size: 14px !important;
+}
+
+/* Progress bar animations */
+.progress-bar {
+  transition: width 0.6s ease;
+}
+
+/* Card hover effects */
+.bg-primary.bg-gradient:hover,
+.bg-success.bg-gradient:hover,
+.bg-info.bg-gradient:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* SVG animations */
+svg rect {
+  transition: opacity 0.3s ease;
+}
+
+svg rect:hover {
+  opacity: 1 !important;
+  filter: brightness(1.1);
+}
+
+/* Status timeline styles */
+.timeline-step {
+  position: relative;
+  padding-left: 25px;
+}
+
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 25px;
+  width: 2px;
+  height: 20px;
+  background: #dee2e6;
+}
+
+.timeline-step:last-child::before {
+  display: none;
+}
+
+/* Accessibility Improvements */
+.btn:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.sortable-header:focus {
+  outline: 2px solid #007bff;
+  outline-offset: -2px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 991.98px) {
+  .table-responsive {
+    max-height: 400px;
+  }
+  
+  .mobile-cards {
+    max-height: 400px;
+  }
+}
+
 @media (max-width: 768px) {
   .table-responsive {
     max-height: 50vh;
@@ -726,5 +1525,113 @@ onUnmounted(() => {
   .modal-xl {
     max-width: 95%;
   }
+  
+  .card-title {
+    font-size: 0.95rem !important;
+  }
+  
+  .btn-sm {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .material-icons {
+    font-size: 16px !important;
+  }
+  
+  .status-popover .popover,
+  .report-popover .popover {
+    max-width: 320px !important;
+  }
+  
+  .status-popover .popover {
+    transform: translateX(-20px) !important;
+  }
+  
+  .report-popover .popover {
+    transform: translateX(-30px) !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .mobile-card .btn {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.6rem;
+  }
+  
+  .mobile-card .material-icons {
+    font-size: 12px !important;
+  }
+  
+  .card-header .row {
+    flex-direction: column;
+  }
+  
+  .input-group {
+    max-width: 100% !important;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .card-header,
+  .btn-group,
+  .input-group,
+  .mobile-cards,
+  .tablet-card,
+  .pagination {
+    display: none !important;
+  }
+  
+  .table {
+    font-size: 0.75rem;
+    page-break-inside: auto;
+  }
+  
+  .table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  .table thead {
+    display: table-header-group;
+  }
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: #2c3e50;
+    border-color: #34495e;
+  }
+  
+  .table {
+    --bs-table-bg: #2c3e50;
+    --bs-table-color: #ecf0f1;
+  }
+  
+  .text-muted {
+    color: #95a5a6 !important;
+  }
+}
+
+/* Custom scrollbar for popovers */
+.popover-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.popover-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.popover-body::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.popover-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 </style>

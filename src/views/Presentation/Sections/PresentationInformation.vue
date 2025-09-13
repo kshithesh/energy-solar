@@ -15,7 +15,11 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
               icon="touch_app"
               title="Lowest Pricing as USP"
               description="High-quality, reliable, and eco-friendly solutions."
-              class="orange-gradient-overlay"
+              :style="{ 
+                // background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important',
+                // backgroundBlendMode: 'overlay',
+                // opacity: 0.9
+              }"
             />
 
             <RotatingCardBack
@@ -28,6 +32,11 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
                   label: 'Learn More',
                 },
               ]"
+              :style="{ 
+                // background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important',
+                // backgroundBlendMode: 'overlay',
+                // opacity: 0.9
+              }"
             />
           </RotatingCard>
         </div>
@@ -86,15 +95,18 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
   z-index: 2;
 }
 
-/* Alternative approach - if the component uses CSS variables */
-:deep(.rotating-card-front) {
-  --gradient-color-1: rgba(255, 152, 0, 0.8);
-  --gradient-color-2: rgba(255, 87, 34, 0.9);
-  background: linear-gradient(135deg, var(--gradient-color-1) 0%, var(--gradient-color-2) 100%) !important;
+/* Force override any existing gradients */
+:deep(.rotating-card-front),
+:deep(.rotating-card-back) {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important;
 }
 
-/* Another alternative - targeting specific classes if they exist */
-:deep(.bg-gradient-success) {
+/* Override any gradient classes that might exist */
+:deep(.bg-gradient-success),
+:deep(.bg-gradient-primary),
+:deep(.bg-gradient-info),
+:deep(.bg-gradient-warning),
+:deep(.bg-gradient-danger) {
   background: linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important;
 }
 </style>
