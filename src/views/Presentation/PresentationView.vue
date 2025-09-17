@@ -305,18 +305,41 @@ const statusData = ref(null);
 // Updated status fetching function
 async function fetchStatusAndShow(event) {
   const anchor = event.currentTarget;
+  
+  // Toggle functionality - close if already open
+  if (statusPopover && statusPopover._element === anchor) {
+    statusPopover.hide();
+    statusPopover.dispose();
+    statusPopover = null;
+    return;
+  }
+  
+  // Close any existing status popover before opening new one
+  if (statusPopover) {
+    statusPopover.dispose();
+    statusPopover = null;
+  }
+  
+  // Close report popover if it's open (mutual exclusivity)
+  if (reportPopover) {
+    if (window.reportChart) {
+      window.reportChart.destroy();
+      window.reportChart = null;
+    }
+    reportPopover.dispose();
+    reportPopover = null;
+  }
+  
   statusLoading.value = true;
   statusError.value = "";
   statusData.value = null;
 
   try {
-    // Use the current selected item's status data directly
     const item = selectedItem.value;
     if (!item) {
       throw new Error('No item selected');
     }
 
-    // Extract status information from the current data
     const trackingSteps = [
       {
         label: 'Application Submitted',
@@ -357,7 +380,6 @@ async function fetchStatusAndShow(event) {
     statusLoading.value = false;
     await nextTick();
     const html = buildStatusPopoverHtml();
-    if (statusPopover) statusPopover.dispose();
     statusPopover = new Popover(anchor, { 
       html: true, 
       content: html, 
@@ -601,58 +623,121 @@ function buildReportSvg() {
 
 function initReportChart(chartId) {
   const ctx = document.getElementById(chartId);
-  if (!ctx) return;
+  if (!ctx) {
+    console.warn('Canvas not found for chart ID:', chartId);
+    return;
+  }
+
+  // Destroy any existing chart on this canvas
+  const existingChart = Chart.getChart(ctx);
+  if (existingChart) {
+    existingChart.destroy();
+  }
 
   const monthlyData = window.reportChartsData?.[chartId] || [];
+  
+  if (monthlyData.length === 0) {
+    console.warn('No chart data available for chart ID:', chartId);
+    return;
+  }
 
-  new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: monthlyData.map(d => d.month),
-      datasets: [
-        {
-          label: "Units Generated",
-          data: monthlyData.map(d => d.units),
-          borderColor: "rgba(75,192,192,1)",
-          backgroundColor: "rgba(75,192,192,0.2)",
-          fill: true,
-          tension: 0.4
+  try {
+    const newChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: monthlyData.map(d => d.month),
+        datasets: [
+          {
+            label: "Units Generated",
+            data: monthlyData.map(d => d.units),
+            borderColor: "rgba(75,192,192,1)",
+            backgroundColor: "rgba(75,192,192,0.2)",
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: "Revenue ($)",
+            data: monthlyData.map(d => d.revenue),
+            borderColor: "rgba(255,99,132,1)",
+            backgroundColor: "rgba(255,99,132,0.2)",
+            fill: true,
+            tension: 0.4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
         },
-        {
-          label: "Revenue ($)",
-          data: monthlyData.map(d => d.revenue),
-          borderColor: "rgba(255,99,132,1)",
-          backgroundColor: "rgba(255,99,132,0.2)",
-          fill: true,
-          tension: 0.4
+        scales: {
+          y: {
+            beginAtZero: true
+          }
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false
-    }
-  });
+      }
+    });
+    
+    // Store reference for cleanup
+    window.reportChart = newChart;
+  } catch (error) {
+    console.error('Error creating chart:', error);
+  }
 }
 
 
- function showReportPopover(event) {
+function showReportPopover(event) {
   const anchor = event.currentTarget;
 
-  // Clean up existing chart before creating new popover
+  // Toggle functionality - close if already open
+  if (reportPopover && reportPopover._element === anchor) {
+    // Clean up chart before closing
+    if (window.reportChart) {
+      window.reportChart.destroy();
+      window.reportChart = null;
+    }
+    reportPopover.hide();
+    reportPopover.dispose();
+    reportPopover = null;
+    return;
+  }
+
+  // Close status popover if it's open (mutual exclusivity)
+  if (statusPopover) {
+    statusPopover.dispose();
+    statusPopover = null;
+  }
+
+  // Clean up any existing chart and popover
   if (window.reportChart) {
     window.reportChart.destroy();
     window.reportChart = null;
   }
-
-  // Generate HTML for the popover (with chart script included)
-  const html = buildReportSvg();
-
-  // Dispose existing reportPopover if open
+  
   if (reportPopover) {
     reportPopover.dispose();
     reportPopover = null;
   }
+
+  // Clear any existing chart data
+  if (window.reportChartsData) {
+    Object.keys(window.reportChartsData).forEach(chartId => {
+      const canvas = document.getElementById(chartId);
+      if (canvas) {
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+          existingChart.destroy();
+        }
+      }
+    });
+  }
+
+  // Generate HTML for the popover
+  const html = buildReportSvg();
 
   // Create new popover instance
   reportPopover = new Popover(anchor, {
@@ -660,27 +745,31 @@ function initReportChart(chartId) {
     content: html,
     placement: "top",
     customClass: "report-popover",
-    sanitize: false // allow inline script to run
+    sanitize: false
   });
 
-  // Show it
+  // Show the popover
   reportPopover.show();
 
-  // Store last chart id (optional, if you want cleanup tracking)
-  lastReportChartId = Date.now();
-   setTimeout(() => {
-    const popoverEl = document.querySelector(".popover .popover-body");
+  // Initialize chart after popover is shown
+  setTimeout(() => {
+    const popoverEl = document.querySelector(".report-popover .popover-body");
     if (!popoverEl) return;
 
     const canvas = popoverEl.querySelector("canvas");
     if (!canvas) return;
 
     const chartId = canvas.id;
-    initReportChart(chartId); // draw the chart
-  }, 50);
+    
+    // Double-check no existing chart on this canvas
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+      existingChart.destroy();
+    }
+    
+    initReportChart(chartId);
+  }, 100); // Increased timeout to ensure DOM is ready
 }
-
-
 
 // Helper function to get cell value and handle different data types
 function getCellValue(item, column) {
@@ -1038,7 +1127,7 @@ onUnmounted(() => {
     heroModal = null;
   }
   
-  // Clean up popovers
+  // Enhanced cleanup for popovers
   if (statusPopover) {
     statusPopover.dispose();
     statusPopover = null;
@@ -1053,10 +1142,25 @@ onUnmounted(() => {
     multipleResultsPopover.dispose();
     multipleResultsPopover = null;
   }
-  // Clean up Chart.js instance
+  
+  // Clean up all Chart.js instances
   if (window.reportChart) {
     window.reportChart.destroy();
     window.reportChart = null;
+  }
+  
+  // Clean up any remaining charts
+  if (window.reportChartsData) {
+    Object.keys(window.reportChartsData).forEach(chartId => {
+      const canvas = document.getElementById(chartId);
+      if (canvas) {
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+          existingChart.destroy();
+        }
+      }
+    });
+    window.reportChartsData = {};
   }
   
   // Clean up global functions
