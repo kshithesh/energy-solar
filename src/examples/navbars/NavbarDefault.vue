@@ -107,34 +107,7 @@ watch(
           : 'container-fluid px-0'
       "
     >
-      <RouterLink
-        class="navbar-brand d-none d-md-block"
-        :class="[
-          (props.transparent && textDark.value) || !props.transparent
-            ? 'text-dark font-weight-bolder ms-sm-3'
-            : 'text-white font-weight-bolder ms-sm-3'
-        ]"
-        :to="{ name: 'presentation' }"
-        rel="tooltip"
-        title=""
-        data-placement="bottom"
-      >
-        Energy Solar
-      </RouterLink>
-      <RouterLink
-        class="navbar-brand d-block d-md-none"
-        :class="
-          props.transparent || props.dark
-            ? 'text-white'
-            : 'font-weight-bolder ms-sm-3'
-        "
-        to="/"
-        rel="tooltip"
-        title=""
-        data-placement="bottom"
-      >
-        Energy Solar
-      </RouterLink>
+
       <button
         class="navbar-toggler shadow-none ms-2"
         type="button"
@@ -154,6 +127,13 @@ watch(
         class="collapse navbar-collapse w-100 pt-3 pb-2 py-lg-0"
         id="navigation"
       >
+      <img
+        src="/src/assets/img/Energy-Solar-Logo.png"
+        alt="Energy Solar Logo"
+        height="50"
+        width="100"
+      />
+
         <ul class="navbar-nav navbar-nav-hover ms-auto">          
           <!-- <li class="nav-item dropdown dropdown-hover mx-2">
             <a

@@ -6020,7 +6020,7 @@ textarea.form-control-lg {
 
 .popover {
   --bs-popover-zindex: 1060;
-  --bs-popover-max-width: 276px;
+  --bs-popover-max-width: 580px !important;
   --bs-popover-font-size: 0.75rem;
   --bs-popover-bg: #fff;
   --bs-popover-border-width: 0px;

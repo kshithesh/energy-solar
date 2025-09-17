@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed, nextTick } from "vue";
 import { Modal, Popover } from "bootstrap";
+import Chart from 'chart.js/auto';
 
 //example components
 import NavbarDefault from "../..//examples/navbars/NavbarDefault.vue";
@@ -37,6 +38,7 @@ const hasSearched = ref(false);
 let heroModal = null;
 let statusPopover = null;
 let reportPopover = null;
+let multipleResultsPopover = null; // New popover for multiple results
 
 // New reactive variables for enhanced table
 const tableSearchQuery = ref('');
@@ -45,9 +47,9 @@ const sortDirection = ref('asc');
 
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
-  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c45b9df707ce7aa5b86933/data";
-  const apiKey = "e2b5ae315681e9ce7f24b503c6eaea1d";
-  const apiSecret = "6bf017cc571d036549cd2c8922587904aa54bae9d6703605e78231ece3dea57e";
+  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c80de69e00b4024065e3aa/data";
+  const apiKey = "f091046d748316351eb00498145c4797";
+  const apiSecret = "be662c7f7eff9d3c8719a95ab9ca1859c4058dbaa879edb8367b1449af56d107";
 
   try {
     const url = new URL(baseUrl);
@@ -64,34 +66,54 @@ async function searchExternalApi(query) {
       "x-api-secret": apiSecret
     };
 
-    console.log("Making API request to:", url.toString());
-
     const response = await fetch(url.toString(), { method: "GET", headers });
 
     if (!response.ok) {
-      return null;
+      throw new Error(`API request failed with status: ${response.status}`);
     }
 
     const data = await response.json();
     console.log("SPDCL API response:", data);
 
-    // Return array if response is an object
-    if (Array.isArray(data)) return data;
-
-    if(data.data.length > 1 ){
-      return null;
+    // Handle direct array response
+    if (Array.isArray(data)) {
+      return data.length > 0 ? data : [];
     }
 
-    const possibleArrayKeys = ["data", "results", "items", "records", "documents"];
-    for (const key of possibleArrayKeys) {
-      if (Array.isArray(data[key])) return data[key];
+    // Handle object response with array properties
+    if (data && typeof data === 'object') {
+      // Check if data.data exists and handle it properly
+      if ('data' in data) {
+        if (Array.isArray(data.data)) {
+          return data.data.length > 0 ? data.data : [];
+        } else if (data.data && typeof data.data === 'object') {
+          // If data.data is an object, wrap it in an array
+          return [data.data];
+        }
+      }
+
+      // Check other possible array keys
+      const possibleArrayKeys = ["results", "items", "records", "documents"];
+      for (const key of possibleArrayKeys) {
+        if (Array.isArray(data[key])) {
+          const foundArray = data[key];
+          // Return empty array if found array is empty (triggers "no data found" state)
+          return foundArray.length > 0 ? foundArray : [];
+        }
+      }
+
+      // If no array found but object has data, wrap it in an array
+      if (Object.keys(data).length > 0) {
+        return [data];
+      }
     }
 
-    return data && Object.keys(data).length > 0 ? [data] : [];
+    // Return empty array for all other cases (triggers "no data found" state)
+    return [];
     
   } catch (error) {
     console.error("SPDCL Data API Error:", error);
-    throw error;
+    throw error; // This will trigger the error state in your component
   }
 }
 
@@ -115,43 +137,34 @@ const enhancedTableColumns = computed(() => {
   }
   
   const firstItem = results.value[0];
-  const allColumns = Object.keys(firstItem).map(key => ({
-    key: key,
-    label: getFriendlyLabelForKey(key),
-    sortable: true,
-    searchable: true
-  }));
   
-  // Prioritize important columns first
-  const priorityColumns = [
-    'sr_no',
-    'farmer_name(applicant_name)',
-    'application_no.',
-    'mobile_number',
-    'capacity_of_solar_power_applied_(kw)',
-    'location_circle',
-    'applicant_category',
-    'installation_solar_power_plant'
+  // Define the specific fields you want to display in order
+  const requiredFields = [
+  'Client Id',
+  'Farmer Name(Applicant Name)',
+  'Application No',
+  'Mobile Number',
+  'Email ID',
+  'EMD Paid Capacity (MW)',
+  'Location Circle',
+  'Location Division',
+  'Location Section',
+  'Distance of proposed land and sub station (KM)',
+  'Location Sub Station',
+  'Status'
   ];
   
-  const sortedColumns = [];
+  // Only include fields that exist in the data and are in our required list
+  const availableColumns = requiredFields
+    .filter(field => field in firstItem)
+    .map(key => ({
+      key: key,
+      label: getFriendlyLabelForKey(key),
+      sortable: true,
+      searchable: true
+    }));
   
-  // Add priority columns first
-  priorityColumns.forEach(priorityKey => {
-    const column = allColumns.find(col => col.key === priorityKey);
-    if (column) {
-      sortedColumns.push(column);
-    }
-  });
-  
-  // Add remaining columns
-  allColumns.forEach(column => {
-    if (!sortedColumns.find(col => col.key === column.key)) {
-      sortedColumns.push(column);
-    }
-  });
-  
-  return sortedColumns;
+  return availableColumns;
 });
 
 // Table search/filter functionality
@@ -197,34 +210,32 @@ function extractImageUrl(item) {
   return null;
 }
 
-// Updated preferred groups for SPDCL Data fields
+// preferred groups for SPDCL Data fields
 const preferredGroups = [
-  ['sr_no'],
-  ['farmer_name(applicant_name)', 'applicant_name', 'name'],
-  ['application_no.', 'application_no', 'appNo'],
-  ['mobile_number', 'phone', 'contact'],
-  ['email_id', 'email'],
-  ['capacity_of_solar_power_applied_(kw)', 'capacity', 'mw'],
-  ['emd_paid_capacity_(mw)', 'emd_capacity'],
-  ['loa_issued_capacity_(mw)', 'loa_capacity'],
-  ['location_circle', 'circle'],
-  ['location_division', 'division'],
-  ['location_sub_division', 'sub_division'],
-  ['location_section', 'section'],
-  ['distance_of_proposed_land_and_sub_station_(km)', 'distance'],
-  ['communication_district', 'district'],
-  ['communication_mandal', 'mandal'],
-  ['communication_village', 'village'],
-  ['communication_address', 'address'],
-  ['applicant_category', 'category'],
-  ['gender'],
-  ['land_coverage_(acres)', 'land_acres'],
-  ['installation_solar_power_plant', 'installation_status'],
-  ['reject/pending_reason', 'status']
+  ['_id', 'Client Id'],
+  ['Farmer Name(Applicant Name)', 'applicant_name', 'name'],
+  ['Application No', 'application_no.', 'appNo'],
+  ['Mobile Number', 'phone', 'contact'],
+  ['Email ID', 'email'], 
+  ['EMD Paid Capacity (MW)', 'LOA Issued Capacity (MW)', 'Capacity of Solar Power applied (KW)'],
+  ['Location Circle', 'circle'], 
+  ['Location Division', 'division'],
+  ['Location Section', 'section'],
+  ['Distance of proposed land and sub station (KM)', 'distance'],
+  ['Location Sub Station', 'subsection'],
+  ['Status']
 ];
 
 // Show IDs as the user requested; exclude only image-like keys
-const excludedKeys = [];
+const excludedKeys = [
+  'organization_id', '__v', 'updatedAt', 'Onboard Date', 
+  'Communication Address', 'Communication District', 'Communication Mandal',
+  'Communication State', 'Communication Village', 'Application Type',
+  'Authorized Person', 'Father/Husband Name', 'Gender', 'Image',
+  'Installation Solar Power Plant', 'Land Coverage (Acres)', 'Land Survey No',
+  'Location DISCOM', 'Location Sub Division', 'Net worth of the Firm',
+  'Pan Number', 'Reject/pending Reason', 'Sl', 'Sl_No', 'Aadhar Number'
+];
 const imageCandidateKeys = ['photo','image','imageUrl','avatar','profileImage','picture','img','logo'];
 
 function groupIndexForKey(key) {
@@ -235,37 +246,22 @@ function groupIndexForKey(key) {
 }
 
 function getFriendlyLabelForKey(key) {
-  // Updated mapping for SPDCL Data fields
   const labelMap = {
-    'sr_no': 'Sr. No.',
-    'farmer_name(applicant_name)': 'Farmer Name',
-    'application_no.': 'Application No.',
-    'emd_paid_capacity_(mw)': 'EMD Paid Capacity (MW)',
-    'loa_issued_capacity_(mw)': 'LOA Issued Capacity (MW)',
-    'applicant_category': 'Category',
-    'application_type': 'Application Type',
-    'father/husband_name': 'Father/Husband Name',
-    'mobile_number': 'Mobile Number',
-    'email_id': 'Email ID',
-    'communication_state': 'State',
-    'communication_district': 'District',
-    'communication_mandal': 'Mandal',
-    'communication_village': 'Village',
-    'communication_address': 'Address',
-    'authorized_person': 'Authorized Person',
-    'location_discom': 'DISCOM',
-    'location_circle': 'Circle',
-    'location_division': 'Division',
-    'location_sub_division': 'Sub Division',
-    'location_section': 'Section',
-    'location_sub_station': 'Sub Station',
-    'land_coverage_(acres)': 'Land Coverage (Acres)',
-    'land_survey_no': 'Survey Number',
-    'capacity_of_solar_power_applied_(kw)': 'Applied Capacity (KW)',
-    'distance_of_proposed_land_and_sub_station_(km)': 'Distance to Sub Station (KM)',
-    'net_worth_of_the_firm': 'Net Worth',
-    'installation_solar_power_plant': 'Installation Status',
-    'reject/pending_reason': 'Status/Reason'
+    '_id': 'ID',
+    'Client Id': 'Client ID',
+    'Farmer Name(Applicant Name)': 'Name',
+    'Application No': 'Application Number',
+    'Mobile Number': 'Phone Number',
+    'Email ID': 'Email ID',
+    'EMD Paid Capacity (MW)': 'EMD Capacity (MW)',
+    'LOA Issued Capacity (MW)': 'LOA Capacity (MW)',
+    'Capacity of Solar Power applied (KW)': 'Applied Capacity (KW)',
+    'Location Circle': 'Location Circle',
+    'Location Division': 'Location Division',
+    'Location Section': 'Location Section',
+    'Distance of proposed land and sub station (KM)': 'Distance (KM)',
+    'Location Sub Station': 'Sub Station',
+    'Status': 'Status'
   };
   
   return labelMap[key] || formatColumnLabel(key);
@@ -275,20 +271,26 @@ const detailsPairs = computed(() => {
   const item = selectedItem.value;
   if (!item || typeof item !== 'object') return [];
 
-  const keys = Object.keys(item)
-    .filter(k => !excludedKeys.includes(k))
-    .filter(k => !imageCandidateKeys.includes(k));
+  // Use the same required fields array
+  const requiredFields = [
+  'Client Id',
+  'Farmer Name(Applicant Name)',
+  'Application No',
+  'Mobile Number',
+  'Email ID',
+  'EMD Paid Capacity (MW)',
+  'Location Circle',
+  'Location Division',
+  'Location Section',
+  'Distance of proposed land and sub station (KM)',
+  'Location Sub Station',
+  'Status'
+  ];
 
-  const orderIndex = key => groupIndexForKey(key);
+  // Filter to only show required fields that exist in the data
+  const filteredKeys = requiredFields.filter(key => key in item);
 
-  const sortedKeys = [...keys].sort((a, b) => {
-    const oa = orderIndex(a);
-    const ob = orderIndex(b);
-    if (oa !== ob) return oa - ob;
-    return a.localeCompare(b);
-  });
-
-  return sortedKeys.map(k => ({
+  return filteredKeys.map(k => ({
     key: k,
     label: getFriendlyLabelForKey(k),
     value: getCellValue(item, { key: k })
@@ -475,89 +477,55 @@ function buildStatusPopoverHtml() {
   `;
 }
 
- function showReportPopover(event) {
-   const anchor = event.currentTarget;
-   const html = buildReportSvg();
-   if (reportPopover) reportPopover.dispose();
-   reportPopover = new Popover(anchor, { 
-     html: true, 
-     content: html, 
-     placement: 'top',
-     customClass: 'report-popover'
-   });
-   reportPopover.show();
- }
+let lastReportChartId = null;
 
+// Replace the buildReportSvg() function with this updated version
 function buildReportSvg() {
   const item = selectedItem.value;
   if (!item) return '<div class="p-2">No data available</div>';
 
-  // Extract meaningful data for the report
+  // Generate random values if missing
+  if (!item.unitsGenerated) {
+    item.unitsGenerated = Math.floor(Math.random() * 2000) + 1000;
+  }
+  if (!item.revenueGenerated) {
+    item.revenueGenerated = (Math.random() * 10000).toFixed(2);
+  }
+
+  // Extract metrics
   const appliedCapacity = parseFloat(item['Capacity of Solar Power applied (KW)']) || 0;
-  const emdCapacity = parseFloat(item['EMD Paid Capacity (MW)']) || 0;
-  const loaCapacity = parseFloat(item['LOA Issued Capacity (MW)']) || 0;
   const landCoverage = parseFloat(item['Land Coverage (Acres)']) || 0;
-  
-  // Convert MW to KW for consistency
-  const emdCapacityKW = emdCapacity * 1000;
-  const loaCapacityKW = loaCapacity * 1000;
-  
-  // Calculate progress percentages
-  const maxCapacity = Math.max(appliedCapacity, emdCapacityKW, loaCapacityKW, 1000);
-  const appliedPercent = (appliedCapacity / maxCapacity) * 100;
-  const emdPercent = (emdCapacityKW / maxCapacity) * 100;
-  const loaPercent = (loaCapacityKW / maxCapacity) * 100;
-  
-  // Chart dimensions
-  const chartWidth = 300;
-  const chartHeight = 200;
-  const barWidth = 45;
-  const barSpacing = 15;
-  const startX = 30;
-  const maxBarHeight = 140;
 
-  // Create bars data
-  const bars = [
-    { label: 'Applied', value: appliedCapacity, percent: appliedPercent, color: '#344767' },
-    { label: 'EMD Paid', value: emdCapacityKW, percent: emdPercent, color: '#f39c12' },
-    { label: 'LOA Issued', value: loaCapacityKW, percent: loaPercent, color: '#27ae60' }
-  ];
-
-  const barsHtml = bars.map((bar, index) => {
-    const x = startX + index * (barWidth + barSpacing);
-    const barHeight = (bar.percent / 100) * maxBarHeight;
-    const y = chartHeight - 40 - barHeight; // 40px for bottom margin
+  // Generate sample monthly data
+  const generateMonthlyData = (item) => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const unitsBase = item.unitsGenerated || 2500;
+    const revenueBase = parseFloat(item.revenueGenerated) || 5000;
     
-    return `
-      <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" 
-            fill="${bar.color}" rx="4" opacity="0.8"/>
-      <text x="${x + barWidth/2}" y="${chartHeight - 20}" 
-            text-anchor="middle" font-size="10" fill="#666">${bar.label}</text>
-      <text x="${x + barWidth/2}" y="${y - 8}" 
-            text-anchor="middle" font-size="9" fill="#333" font-weight="bold">
-            ${bar.value > 0 ? (bar.value >= 1000 ? (bar.value/1000).toFixed(1) + 'MW' : bar.value + 'KW') : '0'}
-      </text>
-    `;
-  }).join('');
+    return months.map((month, index) => {
+      const seasonalFactor = 0.8 + 0.4 * Math.sin((index - 2) * Math.PI / 6);
+      const randomFactor = 0.9 + 0.2 * Math.random();
+      return {
+        month,
+        units: Math.round(unitsBase * seasonalFactor * randomFactor),
+        revenue: Math.round(revenueBase * seasonalFactor * randomFactor * 100) / 100
+      };
+    });
+  };
 
-  // Pie chart for land usage (simple representation)
-  const pieRadius = 35;
-  const pieCenterX = chartWidth - 70;
-  const pieCenterY = 60;
-  const usedLand = landCoverage;
-  const totalLand = landCoverage * 1.5; // Assume total available is 1.5x used
-  const usedAngle = (usedLand / totalLand) * 360;
-  
-  const pieSlice = usedAngle > 0 ? `
-    <path d="M ${pieCenterX} ${pieCenterY} L ${pieCenterX + pieRadius} ${pieCenterY} 
-             A ${pieRadius} ${pieRadius} 0 ${usedAngle > 180 ? 1 : 0} 1 
-             ${pieCenterX + pieRadius * Math.cos(usedAngle * Math.PI / 180)} 
-             ${pieCenterY + pieRadius * Math.sin(usedAngle * Math.PI / 180)} Z"
-          fill="#e74c3c" opacity="0.7"/>
-  ` : '';
+  const monthlyData = generateMonthlyData(item);
 
+  // Unique chart ID
+  const chartId = `lineChart_${Date.now()}`;
+
+  // Store monthly data globally for chart initialization
+  if (!window.reportChartsData) window.reportChartsData = {};
+  window.reportChartsData[chartId] = monthlyData;
+
+
+  // Return HTML only (no <script>)
   return `
-    <div style="max-width:380px; min-width:350px;" class="p-3 position-relative">
+    <div style="max-width:500px; min-width:482px;" class="p-3 position-relative">
       <!-- Close Button -->
       <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
               onclick="closeReportPopover()" 
@@ -589,51 +557,23 @@ function buildReportSvg() {
             <small>KM Distance</small>
           </div>
         </div>
-        <div class="col-3">
-            <div class="bg-warning bg-gradient text-white rounded p-2 text-center">
-                <div class="h6 mb-0">${item.unitsGenerated || '0'}</div>
-                <small>Units Gen.</small>
-            </div>
+        <div class="col-6">
+          <div class="bg-warning bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">${item.unitsGenerated || '0'}</div>
+            <small>Units Gen.</small>
+          </div>
         </div>
-        <div class="col-3">
-            <div class="bg-danger bg-gradient text-white rounded p-2 text-center">
-                <div class="h6 mb-0">$${item.revenueGenerated || '0'}</div>
-                <small>Revenue</small>
-            </div>
+        <div class="col-6">
+          <div class="bg-danger bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">$${item.revenueGenerated || '0'}</div>
+            <small>Revenue</small>
+          </div>
         </div>
       </div>
 
-      <!-- Charts Container -->
-      <div class="bg-light rounded p-2 mb-3">
-        <svg width="${chartWidth}" height="${chartHeight}" viewBox="0 0 ${chartWidth} ${chartHeight}">
-          <!-- Grid lines -->
-          <defs>
-            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="1" opacity="0.3"/>
-            </pattern>
-          </defs>
-          <rect width="${chartWidth}" height="${chartHeight}" fill="url(#grid)" />
-          
-          <!-- Title -->
-          <text x="${chartWidth/2}" y="20" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">
-            Capacity Analysis (KW/MW)
-          </text>
-          
-          <!-- Bar Chart -->
-          ${barsHtml}
-          
-          <!-- Pie Chart for Land Usage -->
-          <text x="${pieCenterX}" y="30" text-anchor="middle" font-size="10" fill="#666">Land Usage</text>
-          <circle cx="${pieCenterX}" cy="${pieCenterY}" r="${pieRadius}" fill="#ecf0f1"/>
-          ${pieSlice}
-          <circle cx="${pieCenterX}" cy="${pieCenterY}" r="15" fill="white"/>
-          <text x="${pieCenterX}" y="${pieCenterY + 3}" text-anchor="middle" font-size="8" fill="#333">
-            ${usedLand.toFixed(1)}
-          </text>
-          <text x="${pieCenterX}" y="${pieCenterY + 12}" text-anchor="middle" font-size="6" fill="#666">
-            acres
-          </text>
-        </svg>
+      <!-- Chart Container -->
+      <div class="bg-light rounded p-2 mb-3" style="height: 200px;">
+        <canvas id="${chartId}"></canvas>
       </div>
 
       <!-- Status Summary -->
@@ -650,14 +590,97 @@ function buildReportSvg() {
 
       <!-- Footer Note -->
       <div class="border-top pt-2 mt-3">
-        <small class="text-muted d-block text-center">
+        <p class="text-muted d-block text-center">
           <i class="material-icons me-1" style="font-size:14px">info</i>
           Generated on ${new Date().toLocaleDateString()}
-        </small>
+        </p>
       </div>
     </div>
   `;
 }
+
+function initReportChart(chartId) {
+  const ctx = document.getElementById(chartId);
+  if (!ctx) return;
+
+  const monthlyData = window.reportChartsData?.[chartId] || [];
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: monthlyData.map(d => d.month),
+      datasets: [
+        {
+          label: "Units Generated",
+          data: monthlyData.map(d => d.units),
+          borderColor: "rgba(75,192,192,1)",
+          backgroundColor: "rgba(75,192,192,0.2)",
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: "Revenue ($)",
+          data: monthlyData.map(d => d.revenue),
+          borderColor: "rgba(255,99,132,1)",
+          backgroundColor: "rgba(255,99,132,0.2)",
+          fill: true,
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+}
+
+
+ function showReportPopover(event) {
+  const anchor = event.currentTarget;
+
+  // Clean up existing chart before creating new popover
+  if (window.reportChart) {
+    window.reportChart.destroy();
+    window.reportChart = null;
+  }
+
+  // Generate HTML for the popover (with chart script included)
+  const html = buildReportSvg();
+
+  // Dispose existing reportPopover if open
+  if (reportPopover) {
+    reportPopover.dispose();
+    reportPopover = null;
+  }
+
+  // Create new popover instance
+  reportPopover = new Popover(anchor, {
+    html: true,
+    content: html,
+    placement: "top",
+    customClass: "report-popover",
+    sanitize: false // allow inline script to run
+  });
+
+  // Show it
+  reportPopover.show();
+
+  // Store last chart id (optional, if you want cleanup tracking)
+  lastReportChartId = Date.now();
+   setTimeout(() => {
+    const popoverEl = document.querySelector(".popover .popover-body");
+    if (!popoverEl) return;
+
+    const canvas = popoverEl.querySelector("canvas");
+    if (!canvas) return;
+
+    const chartId = canvas.id;
+    initReportChart(chartId); // draw the chart
+  }, 50);
+}
+
+
 
 // Helper function to get cell value and handle different data types
 function getCellValue(item, column) {
@@ -916,7 +939,19 @@ async function onHeroSearch() {
     const data = await searchExternalApi(trimmed);
     // Handle different response structures
     if (Array.isArray(data)) {
-      results.value = data;
+      // Check if multiple results were found
+      if (data.length > 1) {
+        results.value = data;
+        // Show multiple results popover instead of displaying the data
+        setTimeout(() => {
+          showMultipleResultsPopover();
+        }, 100);
+        return;
+      } else if (data.length === 1) {
+        results.value = data;
+      } else {
+        results.value = [];
+      }
     } else if (data && typeof data === 'object') {
       // If the response is an object, try to find array data
       const possibleArrayKeys = ['results', 'data', 'items', 'records'];
@@ -930,7 +965,16 @@ async function onHeroSearch() {
       }
       
       if (foundArray) {
-        results.value = foundArray;
+        if (foundArray.length > 1) {
+          results.value = foundArray;
+          // Show multiple results popover instead of displaying the data
+          setTimeout(() => {
+            showMultipleResultsPopover();
+          }, 100);
+          return;
+        } else {
+          results.value = foundArray;
+        }
       } else if (Object.keys(data).length > 0) {
         // If no array found but object has data, wrap it in an array
         results.value = [data];
@@ -967,10 +1011,23 @@ onMounted(() => {
   };
   
   window.closeReportPopover = () => {
+    if (window.reportChart) {
+      window.reportChart.destroy();
+      window.reportChart = null;
+    }
     if (reportPopover) {
       reportPopover.hide();
       reportPopover.dispose();
       reportPopover = null;
+    }
+  };
+  
+  // Add global function for closing multiple results popover
+  window.closeMultipleResultsPopover = () => {
+    if (multipleResultsPopover) {
+      multipleResultsPopover.hide();
+      multipleResultsPopover.dispose();
+      multipleResultsPopover = null;
     }
   };
 });
@@ -992,9 +1049,20 @@ onUnmounted(() => {
     reportPopover = null;
   }
   
+  if (multipleResultsPopover) {
+    multipleResultsPopover.dispose();
+    multipleResultsPopover = null;
+  }
+  // Clean up Chart.js instance
+  if (window.reportChart) {
+    window.reportChart.destroy();
+    window.reportChart = null;
+  }
+  
   // Clean up global functions
   delete window.closeStatusPopover;
   delete window.closeReportPopover;
+  delete window.closeMultipleResultsPopover;
 });
 </script>
 
@@ -1048,39 +1116,103 @@ onUnmounted(() => {
         <div class="modal-header">
           <h6 class="modal-title">
             Search results
-            <span v-if="results.length > 0" class="badge bg-dark ms-2">{{ results.length }} {{ results.length === 1 ? 'result' : 'results' }}</span>
           </h6>
           <!-- <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">X</button> -->
         </div>
-        <div class="custom-table-container">
-          <div>
-            <h1>Energy Solar Client Details</h1>
+
+        <div class="modal-body p-0">
+          <!-- Loading State -->
+          <div v-if="isLoading" class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">Searching...</p>
           </div>
-             <!-- Passport Image -->
+
+          <!-- Error State -->
+          <div v-else-if="errorMessage && hasSearched" class="text-center py-5">
+            <div class="text-danger mb-3">
+              <i class="material-icons" style="font-size: 48px;">error_outline</i>
+            </div>
+            <h5 class="text-danger">Search Error</h5>
+            <p class="text-muted">{{ errorMessage }}</p>
+            <button type="button" class="btn btn-outline-primary btn-sm" @click="heroQuery = ''; errorMessage = ''; hasSearched = false;">
+              Try Again
+            </button>
+          </div>
+
+          <!-- No Data Found State -->
+          <div v-else-if="hasSearched && (!results || results.length === 0)" class="text-center py-5">
+            <div class="text-muted mb-3">
+              <i class="material-icons" style="font-size: 48px;">search_off</i>
+            </div>
+            <h5 class="text-muted">No Data Found</h5>
+            <p class="text-muted">
+              No records found for "{{ heroQuery }}". 
+              <br>
+              <small>Try searching with different keywords or check the spelling.</small>
+            </p>
+            <div class="mt-3">
+              <!-- <button type="button" class="btn btn-outline-primary btn-sm me-2" @click="heroQuery = ''; hasSearched = false;">
+                <i class="material-icons me-1" style="font-size: 16px;">refresh</i>
+                New Search
+              </button> -->
+              <button type="button" class="btn btn-outline-secondary btn-sm" @click="onHeroSearch">
+                <i class="material-icons me-1" style="font-size: 16px;">search</i>
+                Search Again
+              </button>
+            </div>
+          </div>
+
+          <!-- Results Found - Show Data (Only for single result) -->
+          <div v-else-if="results && results.length === 1">
+            <div class="custom-table-container">
+              <div style="height: 150px;">
+                <h1>Energy Solar Client Details</h1>
+                <!-- Passport Image -->
               <img 
-                src="your-passport-image.jpg" 
+                src="/src/assets/img/user-img.jpg" 
                 alt="Client Photo" 
                 class="passport-image"
               />
-          <div class="custom-table-header">
-            <div class="header-item">FIELD</div>
-            <div class="header-item value-header">VALUE</div>
-          </div>
-          <div class="custom-table-body">
-            <div class="custom-table-row" v-for="pair in detailsPairs" :key="pair.key">
-              <div class="row-item">{{ pair.label }}</div>
-              <div class="row-item value-item">{{ pair.value }}</div>
+              </div>
+              <div class="custom-table-header">
+                <div class="header-item">FIELD</div>
+                <div class="header-item value-header">VALUE</div>
+              </div>
+              <div class="custom-table-body">
+                <div class="custom-table-row" v-for="pair in detailsPairs" :key="pair.key">
+                  <div class="row-item">{{ pair.label }}</div>
+                  <div class="row-item value-item">{{ pair.value }}</div>
+                </div>
+              </div>
+              <div class="custom-table-actions">
+                <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchStatusAndShow">Track status</button>
+                <button type="button" class="btn btn-dark" @click="showReportPopover">View report</button>
+              </div>
             </div>
           </div>
-          <div class="custom-table-actions">
-            <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchStatusAndShow">Track status</button>
-            <button type="button" class="btn btn-dark" @click="showReportPopover">View report</button>
+
+          <!-- Initial State - No search performed yet -->
+          <div v-else class="text-center py-5">
+            <div class="text-muted mb-3">
+              <i class="material-icons" style="font-size: 48px;">search</i>
+            </div>
+            <h5 class="text-muted">Search Energy Solar Data</h5>
+            <p class="text-muted">Enter a search term to find client records and project information.</p>
+            <div class="mt-3">
+              <small class="text-muted">
+                Search by: Application No., Client Name, Mobile Number, Location, etc.
+              </small>
+            </div>
           </div>
         </div>
+
         <div class="modal-footer justify-content-between">
           <div>
-            <small class="text-muted" v-if="results.length > 0">
-              Showing {{ results.length }} {{ results.length === 1 ? 'result' : 'results' }}
+            <small class="text-muted" v-if="results.length === 1">
+              Showing 1 result
+            </small>
+            <small class="text-muted" v-else-if="results.length > 1">
+              {{ results.length }} results found - please refine your search
             </small>
           </div>
           <button type="button" class="btn btn-dark m-1" data-bs-dismiss="modal">Close</button>
@@ -1097,17 +1229,43 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.report-popover .popover-body canvas {
+  width: 100% !important;
+  height: 180px !important;
+}
+
+.report-popover .popover {
+  max-width: 420px !important;
+}
 
 .passport-image {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 80px;    /* adjust size */
-  height: 100px;  /* adjust size */
+  top: 7px;
+  right: 20px;
+  width: 140px;    /* adjust size */
+  height: 140px;  /* adjust size */
   object-fit: cover;
-  border: 2px solid #333;
-  border-radius: 4px;
+  /* border: 2px solid #333; */
+  border-radius: 50%;
 }
+
+/* Enhanced Multiple Results Popover Styles */
+.multiple-results-popover .popover {
+  max-width: 382px !important;
+  border: none;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.18);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.multiple-results-popover .popover-arrow::before {
+  border-bottom-color: #fff;
+}
+
+.multiple-results-popover .popover-body {
+  padding: 0 !important;
+}
+
 /* Enhanced Table Styles */
  .custom-table-container {
     /* background-color: #2e2e34; */
@@ -1597,7 +1755,8 @@ svg rect:hover {
   }
   
   .status-popover .popover,
-  .report-popover .popover {
+  .report-popover .popover,
+  .multiple-results-popover .popover {
     max-width: 320px !important;
   }
   
@@ -1607,6 +1766,10 @@ svg rect:hover {
   
   .report-popover .popover {
     transform: translateX(-30px) !important;
+  }
+  
+  .multiple-results-popover .popover {
+    transform: translateX(-25px) !important;
   }
 }
 
