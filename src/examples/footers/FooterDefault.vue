@@ -1,30 +1,22 @@
 <script setup>
-import { ref } from 'vue';
-import logoDark from "@/assets/img/Energy-Solar-Logo.png";
+import { ref } from 'vue'
+import logoDark from "@/assets/img/Energy-Solar-Logo.png"
 
-const isModalOpen = ref(false);
+// import images
+import project1 from "@/assets/img/project-1.jpg"
+import project2 from "@/assets/img/project-2.jpg"
+import project3 from "@/assets/img/project-3.jpg"
+import project4 from "@/assets/img/project-4.jpg"
+import project5 from "@/assets/img/project-5.jpg"
+
+const isModalOpen = ref(false)
 const projectImages = ref([
-  {
-    id: 1,
-    src: "/src/assets/img/project-1.jpg",
-  },
-  {
-    id: 2,
-    src: "/src/assets/img/project-2.jpg",
-  },
-  {
-    id: 3,
-    src: "/src/assets/img/project-3.jpg",
-  },
-  {
-    id: 4,
-    src: "/src/assets/img/project-4.jpg",
-  },
-  {
-    id: 5,
-    src: "/src/assets/img/project-5.jpg", 
-  }
-]);
+  { id: 1, src: project1 },
+  { id: 2, src: project2 },
+  { id: 3, src: project3 },
+  { id: 4, src: project4 },
+  { id: 5, src: project5 }
+])
 
 defineProps({
   brand: {
