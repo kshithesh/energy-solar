@@ -320,14 +320,6 @@ const handleItemClick = (item) => {
                   class="project-image"
                   @error="$event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4cHgiIGZpbGw9IiM2Yjc2ODciIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Tb2xhciBQcm9qZWN0IEltYWdlPC90ZXh0Pjwvc3ZnPg=='"
                 />
-                <div class="image-overlay">
-                  <div class="image-info">
-                    <h6 class="image-title">{{ image.title }}</h6>
-                    <div class="view-icon">
-                      <i class="fas fa-eye"></i>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
