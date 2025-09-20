@@ -13,8 +13,7 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
             <RotatingCardFront
               image="https://images.unsplash.com/photo-1569683795645-b62e50fbf103?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=987&q=80"
               icon="touch_app"
-              title="Lowest Pricing as USP"
-              description="High-quality, reliable, and eco-friendly solutions."
+              title="Lowest pricing is our USP"
               :style="{ 
                 // background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.8) 0%, rgba(255, 87, 34, 0.9) 100%) !important',
                 // backgroundBlendMode: 'overlay',
@@ -50,21 +49,21 @@ import DefaultInfoCard from "../../../examples/cards/infoCards/DefaultInfoCard.v
             <DefaultInfoCard
               :icon="{ component: 'flip_to_front', color: 'warning', size: '3xl' }"
               title="Experience & Expertise"
-              description="With over 800 MW of ground-mounted projects, our skilled professionals have extensive knowledge in solar technology."
+              description="With over 867 MW of ground-mounted projects, our skilled professionals have extensive knowledge in solar technology."
             />
           </div>
           <div class="row justify-content-start mt-5">
             <DefaultInfoCard
               class="mt-3"
               :icon="{ component: 'price_change', color: 'warning', size: '3xl' }"
-              title="Eco-Friendly Commitment"
-              description="Our solutions reduce electricity costs and carbon footprints, supporting a sustainable planet."
+              title="7 Years Complete AMC"
+              description="We provide 7 years of comprehensive Annual Maintenance Contract, ensuring your solar plant runs smoothly without additional service costs."
             />
             <DefaultInfoCard
               class="mt-3"
               :icon="{ component: 'devices', color: 'warning', size: '3xl' }"
               title="Quick Installation and Service"
-              description="We promise installation within 100 days, a 25-year plant service promise, and a site visit within 24 hours."
+              description="Our dedicated service team guarantees a site visit within 24 hours to resolve any issues quickly and efficiently."
             />
           </div>
         </div>

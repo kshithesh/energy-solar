@@ -34,7 +34,7 @@ defineProps({
       <p class="text-white opacity-8">
         {{ description }}
       </p>
-      <div class="buttons-group">
+      <!-- <div class="buttons-group">
         <a
           v-for="({ route, color, label }, index) of action"
           :key="index"
@@ -44,7 +44,7 @@ defineProps({
           :class="`${color ? `btn-${color}` : 'btn-white'}`"
           >{{ label }}</a
         >
-      </div>
+      </div> -->
     </div>
   </div>
 </template>

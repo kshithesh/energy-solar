@@ -17,7 +17,8 @@ import PresentationTestimonials from "./Sections/PresentationTestimonials.vue";
 import PresentationInformation from "./Sections/PresentationInformation.vue";
 
 //images
-import vueMkHeader from "@/assets/img/solar.jpg";
+import vueMkHeader from "@/assets/img/Energy-Solar-background.jpg";
+import NavbarNew from "../../examples/navbars/NavbarNew.vue";
 
 //hooks
 const body = document.getElementsByTagName("body")[0];
@@ -36,7 +37,8 @@ const errorMessage = ref("");
 const results = ref([]);
 const hasSearched = ref(false);
 let heroModal = null;
-let statusPopover = null;
+let workStatusPopover = null;
+let paymentStatusPopover = null;
 let reportPopover = null;
 let multipleResultsPopover = null; // New popover for multiple results
 
@@ -48,8 +50,8 @@ const sortDirection = ref('asc');
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
   const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c80de69e00b4024065e3aa/data";
-  const apiKey = "f091046d748316351eb00498145c4797";
-  const apiSecret = "be662c7f7eff9d3c8719a95ab9ca1859c4058dbaa879edb8367b1449af56d107";
+  const apiKey = "da142bb691b1db9e0fa5596d02eaf364";
+  const apiSecret = "c9dd38093a657801db2a0075afc0d949b769f576d5434aed2c8ea635ca981031";
 
   try {
     const url = new URL(baseUrl);
@@ -69,7 +71,7 @@ async function searchExternalApi(query) {
     const response = await fetch(url.toString(), { method: "GET", headers });
 
     if (!response.ok) {
-      throw new Error(`API request failed with status: ${response.status}`);
+      throw new Error(`Request failed`);
     }
 
     const data = await response.json();
@@ -297,30 +299,58 @@ const detailsPairs = computed(() => {
   }));
 });
 
-// Status popover data
-const statusLoading = ref(false);
-const statusError = ref("");
-const statusData = ref(null);
+// Work Status functionality
+const workStatusLoading = ref(false);
+const workStatusError = ref("");
+const workStatusData = ref(null);
 
-// Updated status fetching function
-async function fetchStatusAndShow(event) {
+// Work Status Steps Definition
+const workStatusSteps = [
+  { id: 1, label: 'Site survey completed', key: 'site_survey' },
+  { id: 2, label: 'DPR Initiated', key: 'dpr_initiated' },
+  { id: 3, label: 'DPR Submitted to REDCO', key: 'dpr_submitted_redco' },
+  { id: 4, label: 'DPR REDCO Approval Received', key: 'dpr_redco_approval' },
+  { id: 5, label: 'DPR Submitted to Bank', key: 'dpr_submitted_bank' },
+  { id: 6, label: 'Loan Application Submitted', key: 'loan_application' },
+  { id: 7, label: 'Loan initial milestone received', key: 'loan_milestone' },
+  { id: 8, label: 'Complete plant design', key: 'plant_design' },
+  { id: 9, label: 'Initial personal invoices raised for material procurement', key: 'invoices_raised' },
+  { id: 10, label: 'Preliminary civil work began', key: 'civil_work_began' },
+  { id: 11, label: 'Materials received at site location', key: 'materials_received' },
+  { id: 12, label: 'Civil work execution under progress', key: 'civil_work_progress' },
+  { id: 13, label: 'Module Mounting Structure Erected', key: 'mounting_structure' },
+  { id: 14, label: 'Solar Module and Electrical Equipment installation under way', key: 'equipment_installation' },
+  { id: 15, label: 'Civil, Mechanical and Electrical installations Completed', key: 'installations_completed' },
+  { id: 16, label: 'Evacuation infrastructure Carried out', key: 'evacuation_infrastructure' },
+  { id: 17, label: 'Grid Synchronized', key: 'grid_synchronized' },
+  { id: 18, label: 'End to end meticulous testing', key: 'testing_completed' },
+  { id: 19, label: 'RMS Deployment', key: 'rms_deployment' },
+  { id: 20, label: 'Final Handover to O&M team', key: 'final_handover' }
+];
+
+async function fetchWorkStatusAndShow(event) {
   const anchor = event.currentTarget;
   
   // Toggle functionality - close if already open
-  if (statusPopover && statusPopover._element === anchor) {
-    statusPopover.hide();
-    statusPopover.dispose();
-    statusPopover = null;
+  if (workStatusPopover && workStatusPopover._element === anchor) {
+    workStatusPopover.hide();
+    workStatusPopover.dispose();
+    workStatusPopover = null;
     return;
   }
   
-  // Close any existing status popover before opening new one
-  if (statusPopover) {
-    statusPopover.dispose();
-    statusPopover = null;
+  // Close any existing work status popover before opening new one
+  if (workStatusPopover) {
+    workStatusPopover.dispose();
+    workStatusPopover = null;
   }
   
-  // Close report popover if it's open (mutual exclusivity)
+  // Close other popovers if they're open (mutual exclusivity)
+  if (paymentStatusPopover) {
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
+  }
+  
   if (reportPopover) {
     if (window.reportChart) {
       window.reportChart.destroy();
@@ -330,9 +360,9 @@ async function fetchStatusAndShow(event) {
     reportPopover = null;
   }
   
-  statusLoading.value = true;
-  statusError.value = "";
-  statusData.value = null;
+  workStatusLoading.value = true;
+  workStatusError.value = "";
+  workStatusData.value = null;
 
   try {
     const item = selectedItem.value;
@@ -340,158 +370,418 @@ async function fetchStatusAndShow(event) {
       throw new Error('No item selected');
     }
 
-    const trackingSteps = [
-      {
-        label: 'Application Submitted',
-        done: !!item['Application No'],
-        date: item['Onboard Date'] ? new Date(item['Onboard Date']).toLocaleDateString() : null
-      },
-      {
-        label: 'EMD Payment Completed',
-        done: !!item['EMD Paid Capacity (MW)'] && item['EMD Paid Capacity (MW)'] !== '',
-        capacity: item['EMD Paid Capacity (MW)']
-      },
-      {
-        label: 'LOA Issued',
-        done: !!item['LOA Issued Capacity (MW)'] && item['LOA Issued Capacity (MW)'] !== '',
-        capacity: item['LOA Issued Capacity (MW)']
-      },
-      {
-        label: 'Installation Completed',
-        done: item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant'),
-        type: item['Installation Solar Power Plant']
-      }
-    ];
+    // Map actual API data to work status steps
+    const stepsWithStatus = workStatusSteps.map(step => {
+      let completed = false;
+      let date = null;
 
-    statusData.value = {
-      currentStatus: item['Status'] || 'Processing',
-      applicationNo: item['Application No'],
-      clientId: item['ClientID'],
-      capacity: item['Capacity of Solar Power applied (KW)'],
-      updatedAt: item['updatedAt'] || new Date().toISOString(),
-      pendingReason: item['Reject/pending Reason'],
-      trackingStatus: item['Application Track Status'] || [],
-      steps: trackingSteps,
-      location: `${item['Location Sub Station']}, ${item['Location Division']}`
+      switch (step.key) {
+        case 'site_survey':
+          completed = !!item['Onboard Date']; // If onboarded, survey is done
+          date = completed ? new Date(item['Onboard Date']).toLocaleDateString() : null;
+          break;
+        case 'dpr_initiated':
+          completed = !!item['Application No']; // If app exists, DPR initiated
+          date = completed ? new Date(item['Onboard Date']).toLocaleDateString() : null;
+          break;
+        case 'dpr_submitted_redco':
+        case 'dpr_redco_approval':
+          completed = !!item['EMD Paid Capacity (MW)'] && item['EMD Paid Capacity (MW)'] > 0;
+          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
+          break;
+        case 'dpr_submitted_bank':
+        case 'loan_application':
+          completed = item['Status'] === 'Active' && !!item['EMD Paid Capacity (MW)'];
+          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
+          break;
+        case 'loan_milestone':
+        case 'plant_design':
+          completed = !!item['LOA Issued Capacity (MW)'] && item['LOA Issued Capacity (MW)'] > 0;
+          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
+          break;
+        default:
+          // For remaining steps, only mark complete if LOA is issued and status is Active
+          completed = item['Status'] === 'Active' && 
+                     !!item['LOA Issued Capacity (MW)'] && 
+                     item['LOA Issued Capacity (MW)'] > 0;
+          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
+      }
+
+      return {
+        ...step,
+        completed,
+        date
+      };
+    });
+
+    // Calculate progress based on actual completed steps
+    const completedCount = stepsWithStatus.filter(s => s.completed).length;
+
+    workStatusData.value = {
+      applicationNo: item['Application No'] || 'Unknown',
+      clientId: item['Client Id'] || 'Unknown',
+      currentStatus: item['Status'] || 'Unknown',
+      steps: stepsWithStatus,
+      overallProgress: Math.round((completedCount / workStatusSteps.length) * 100),
+      lastUpdated: item['updatedAt'] || new Date().toISOString()
     };
+
   } catch (e) {
-    statusError.value = e?.message || 'Failed to fetch status';
+    workStatusError.value = e?.message || 'Failed to fetch work status';
   } finally {
-    statusLoading.value = false;
+    workStatusLoading.value = false;
     await nextTick();
-    const html = buildStatusPopoverHtml();
-    statusPopover = new Popover(anchor, { 
+    const html = buildWorkStatusPopoverHtml();
+    workStatusPopover = new Popover(anchor, { 
       html: true, 
       content: html, 
       placement: 'top',
-      customClass: 'status-popover'
+      customClass: 'work-status-popover'
     });
-    statusPopover.show();
+    workStatusPopover.show();
   }
 }
 
-function buildStatusPopoverHtml() {
-  if (statusLoading.value) {
-    return '<div class="py-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div><div class="mt-2">Loading status...</div></div>';
+function buildWorkStatusPopoverHtml() {
+  if (workStatusLoading.value) {
+    return '<div class="py-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div><div class="mt-2">Loading work status...</div></div>';
   }
   
-  if (statusError.value) {
-    return `<div class="text-danger small p-2"><i class="material-icons me-1" style="font-size:16px">error</i>Error: ${statusError.value}</div>`;
+  if (workStatusError.value) {
+    return `
+      <div class="text-center p-4">
+        <div class="text-muted mb-3">
+          <i class="material-icons" style="font-size: 48px;">info_outline</i>
+        </div>
+        <h6 class="text-muted">Work Status Data Not Available</h6>
+        <p class="text-muted small">${workStatusError.value}</p>
+      </div>
+    `;
   }
   
-  const data = statusData.value || {};
+  const data = workStatusData.value || {};
   const steps = Array.isArray(data.steps) ? data.steps : [];
   
-  // Calculate progress percentage
-  const completedSteps = steps.filter(s => s.done).length;
-  const progressPercent = Math.round((completedSteps / steps.length) * 100);
-  
-  // Build status indicator
-  const statusColor = data.currentStatus === 'Active' ? '#28a745' : 
-                     data.currentStatus === 'Pending' ? '#ffc107' : 
-                     data.currentStatus === 'Rejected' ? '#dc3545' : '#6c757d';
-  
   const stepsHtml = steps.map((step, index) => {
-    const icon = step.done ? '✅' : '⏳';
-    const extraInfo = step.capacity ? ` (${step.capacity} MW)` : 
-                     step.date ? ` - ${step.date}` : 
-                     step.type && step.done ? ` - ${step.type}` : '';
+    const icon = step.completed ? '✅' : '⏳';
+    const textClass = step.completed ? 'fw-bold text-success' : 'text-muted';
+    const dateInfo = step.date ? `<small class="text-muted d-block">Completed: ${step.date}</small>` : '';
     
     return `
-      <div class="d-flex align-items-start mb-2">
-        <span class="me-2">${icon}</span>
+      <div class="d-flex align-items-start mb-2 ${index < steps.length - 1 ? 'border-bottom pb-2' : ''}">
+        <span class="me-2 mt-1">${icon}</span>
         <div class="flex-grow-1">
-          <div class="${step.done ? 'fw-bold text-success' : 'text-muted'}">${step.label}</div>
-          ${extraInfo ? `<small class="text-muted">${extraInfo}</small>` : ''}
+          <div class="${textClass}" style="font-size: 0.85rem;">${step.label}</div>
+          ${dateInfo}
         </div>
+        <small class="text-muted ms-2">${step.id}</small>
       </div>
     `;
   }).join('');
 
   return `
-    <div style="max-width:350px; min-width:300px;" class="p-2 position-relative">
+    <div style="max-width:400px; min-width:350px; max-height:650px; overflow:auto;" class="p-3 position-relative">
       <!-- Close Button -->
       <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
-              onclick="closeStatusPopover()" 
+              onclick="closeWorkStatusPopover()" 
               style="z-index: 1000; width: 16px; height: 16px; font-size: 10px;"
               aria-label="Close"></button>
       
       <!-- Header -->
       <div class="d-flex align-items-center justify-content-between mb-3 pe-4">
         <div>
-          <div class="fw-bold h6 mb-1">Application Status</div>
-          <div class="small text-muted">${data.applicationNo || 'N/A'}</div>
+          <div class="fw-bold h6 mb-1">Work Status</div>
+          <div class="small text-muted">${data.applicationNo || 'Unknown'}</div>
         </div>
         <div class="text-end">
-          <span class="badge px-2 py-1" style="background-color:${statusColor}; color:white;">
-            ${data.currentStatus || 'Unknown'}
+          <span class="badge bg-primary px-2 py-1">
+            ${data.overallProgress || 0}% Complete
           </span>
         </div>
       </div>
 
       <!-- Progress Bar -->
       <div class="mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <small class="text-muted">Progress</small>
-          <small class="fw-bold">${progressPercent}%</small>
-        </div>
-        <div class="progress" style="height: 6px;">
-          <div class="progress-bar bg-success" style="width: ${progressPercent}%"></div>
-        </div>
-      </div>
-
-      <!-- Client Info -->
-      <div class="row g-2 mb-3 small">
-        <div class="col-6">
-          <div class="text-muted">Client ID</div>
-          <div class="fw-bold">${data.clientId || 'N/A'}</div>
-        </div>
-        <div class="col-6">
-          <div class="text-muted">Capacity</div>
-          <div class="fw-bold">${data.capacity ? data.capacity + ' KW' : 'N/A'}</div>
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar bg-success" style="width: ${data.overallProgress || 0}%"></div>
         </div>
       </div>
 
       <!-- Steps Timeline -->
       <div class="mb-3">
-        <div class="small fw-bold text-muted mb-2">APPLICATION TIMELINE</div>
-        ${stepsHtml}
-      </div>
-
-      ${data.pendingReason ? `
-        <div class="alert alert-warning py-2 px-3 mb-2">
-          <small><strong>Note:</strong> ${data.pendingReason}</small>
+        <div class="small fw-bold text-muted mb-2">PROJECT TIMELINE</div>
+        <div class="work-timeline-container" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+          ${stepsHtml}
         </div>
-      ` : ''}
+      </div>
 
       <!-- Footer -->
       <div class="border-top pt-2 mt-2">
         <div class="d-flex justify-content-between align-items-center">
           <small class="text-muted">
-            ${data.location ? `📍 ${data.location}` : ''}
+            Client: ${data.clientId || 'Unknown'}
           </small>
           <small class="text-muted">
-            Updated: ${data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : 'N/A'}
+            Updated: ${data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : 'N/A'}
+          </small>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Payment Status functionality
+const paymentStatusLoading = ref(false);
+const paymentStatusError = ref("");
+const paymentStatusData = ref(null);
+
+async function fetchPaymentStatusAndShow(event) {
+  const anchor = event.currentTarget;
+  
+  // Toggle functionality - close if already open
+  if (paymentStatusPopover && paymentStatusPopover._element === anchor) {
+    paymentStatusPopover.hide();
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
+    return;
+  }
+  
+  // Close any existing payment status popover before opening new one
+  if (paymentStatusPopover) {
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
+  }
+  
+  // Close other popovers if they're open (mutual exclusivity)
+  if (workStatusPopover) {
+    workStatusPopover.dispose();
+    workStatusPopover = null;
+  }
+  
+  if (reportPopover) {
+    if (window.reportChart) {
+      window.reportChart.destroy();
+      window.reportChart = null;
+    }
+    reportPopover.dispose();
+    reportPopover = null;
+  }
+  
+  paymentStatusLoading.value = true;
+  paymentStatusError.value = "";
+  paymentStatusData.value = null;
+
+  try {
+    const item = selectedItem.value;
+    if (!item) {
+      throw new Error('No item selected');
+    }
+
+    // Check if we have enough data for payment status
+    const capacity = parseFloat(item['Capacity of Solar Power applied (KW)']);
+    const emdCapacity = parseFloat(item['EMD Paid Capacity (MW)']);
+    const loaCapacity = parseFloat(item['LOA Issued Capacity (MW)']);
+
+    if (!capacity || capacity === 0) {
+      throw new Error('Payment data is not available - missing capacity information');
+    }
+
+    // Calculate payment amounts based on actual data
+    const totalAmount = capacity * 50; // Assuming 50 rupees per KW
+    
+    // Create payment history based on actual API data
+    const paymentHistory = [
+      {
+        id: 1,
+        type: 'Advance',
+        amount: totalAmount * 0.2,
+        status: item['Onboard Date'] ? 'Completed' : 'Pending',
+        date: item['Onboard Date'] ? new Date(item['Onboard Date']).toLocaleDateString() : null,
+        reference: item['Onboard Date'] ? 'ADV001' : null,
+        percentage: 20
+      },
+      {
+        id: 2,
+        type: 'EMD Payment',
+        amount: emdCapacity ? emdCapacity * 1000 * 50 * 0.1 : totalAmount * 0.1,
+        status: (emdCapacity && emdCapacity > 0) ? 'Completed' : 'Pending',
+        date: (emdCapacity && emdCapacity > 0) ? new Date(item['updatedAt']).toLocaleDateString() : null,
+        reference: (emdCapacity && emdCapacity > 0) ? 'EMD001' : null,
+        percentage: 10
+      },
+      {
+        id: 3,
+        type: 'Material Procurement',
+        amount: totalAmount * 0.4,
+        status: (item['Status'] === 'Active' && loaCapacity > 0) ? 'Completed' : 'Pending',
+        date: (item['Status'] === 'Active' && loaCapacity > 0) ? new Date(item['updatedAt']).toLocaleDateString() : null,
+        reference: (item['Status'] === 'Active' && loaCapacity > 0) ? 'MAT001' : null,
+        percentage: 40
+      },
+      {
+        id: 4,
+        type: 'Installation',
+        amount: totalAmount * 0.2,
+        status: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? 'Completed' : 'Pending',
+        date: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? new Date(item['updatedAt']).toLocaleDateString() : null,
+        reference: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? 'INS001' : null,
+        percentage: 20
+      },
+      {
+        id: 5,
+        type: 'Final Payment',
+        amount: totalAmount * 0.1,
+        status: (item['Status'] === 'Active' && loaCapacity > 0) ? 'Completed' : 'Pending',
+        date: null, // Final payment typically comes later
+        reference: null,
+        percentage: 10
+      }
+    ];
+
+    // Calculate actual paid amount based on completed payments
+    const paidAmount = paymentHistory
+      .filter(p => p.status === 'Completed')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    paymentStatusData.value = {
+      applicationNo: item['Application No'] || 'Unknown',
+      clientId: item['Client Id'] || 'Unknown',
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
+      pendingAmount: totalAmount - paidAmount,
+      paymentHistory: paymentHistory,
+      paymentProgress: Math.round((paidAmount / totalAmount) * 100)
+    };
+
+  } catch (e) {
+    paymentStatusError.value = e?.message || 'Payment data is not available';
+  } finally {
+    paymentStatusLoading.value = false;
+    await nextTick();
+    const html = buildPaymentStatusPopoverHtml();
+    paymentStatusPopover = new Popover(anchor, { 
+      html: true, 
+      content: html, 
+      placement: 'top',
+      customClass: 'payment-status-popover'
+    });
+    paymentStatusPopover.show();
+  }
+}
+
+function buildPaymentStatusPopoverHtml() {
+  if (paymentStatusLoading.value) {
+    return '<div class="py-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div><div class="mt-2">Loading payment status...</div></div>';
+  }
+  
+  if (paymentStatusError.value) {
+    return `
+      <div class="text-center p-4">
+        <div class="text-muted mb-3">
+          <i class="material-icons" style="font-size: 48px;">info_outline</i>
+        </div>
+        <h6 class="text-muted">Payment Status Data Not Available</h6>
+        <p class="text-muted small">${paymentStatusError.value}</p>
+      </div>
+    `;
+  }
+  
+  const data = paymentStatusData.value || {};
+  const payments = Array.isArray(data.paymentHistory) ? data.paymentHistory : [];
+  
+  const paymentsHtml = payments.map((payment) => {
+    const statusColor = payment.status === 'Completed' ? '#28a745' : '#ffc107';
+    const statusIcon = payment.status === 'Completed' ? '✅' : '⏳';
+    
+    return `
+      <div class="d-flex align-items-center justify-content-between mb-3 p-2 border rounded">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center mb-1">
+            <span class="me-2">${statusIcon}</span>
+            <div class="fw-bold">${payment.type}</div>
+            <span class="badge ms-2" style="background-color:${statusColor}; color:white; font-size:0.7rem;">
+              ${payment.status}
+            </span>
+          </div>
+          <div class="small text-muted">
+            ${payment.date ? `Paid on: ${new Date(payment.date).toLocaleDateString()}` : 'Payment pending'}
+          </div>
+          ${payment.reference ? `<div class="small text-muted">Ref: ${payment.reference}</div>` : ''}
+        </div>
+        <div class="text-end">
+          <div class="fw-bold">₹${payment.amount.toLocaleString()}</div>
+          <small class="text-muted">${payment.percentage}%</small>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div style="max-width:420px; min-width:380px;" class="p-3 position-relative">
+      <!-- Close Button -->
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-2" 
+              onclick="closePaymentStatusPopover()" 
+              style="z-index: 1000; width: 16px; height: 16px; font-size: 10px;"
+              aria-label="Close"></button>
+      
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between mb-3 pe-4">
+        <div>
+          <div class="fw-bold h6 mb-1">Payment Status</div>
+          <div class="small text-muted">${data.applicationNo || 'Unknown'}</div>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-success px-2 py-1">
+            ${data.paymentProgress || 0}% Paid
+          </span>
+        </div>
+      </div>
+
+      <!-- Payment Summary Cards -->
+      <div class="row g-2 mb-3">
+        <div class="col-4">
+          <div class="bg-primary bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">₹${(data.totalAmount || 0).toLocaleString()}</div>
+            <small>Total</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="bg-success bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">₹${(data.paidAmount || 0).toLocaleString()}</div>
+            <small>Paid</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="bg-warning bg-gradient text-white rounded p-2 text-center">
+            <div class="h6 mb-0">₹${(data.pendingAmount || 0).toLocaleString()}</div>
+            <small>Pending</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mb-3">
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar bg-success" style="width: ${data.paymentProgress || 0}%"></div>
+        </div>
+      </div>
+
+      <!-- Payment History -->
+      <div class="mb-3">
+        <div class="small fw-bold text-muted mb-2">PAYMENT HISTORY</div>
+        <div class="payment-history-container" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+          ${paymentsHtml}
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="border-top pt-2 mt-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            Client: ${data.clientId || 'Unknown'}
+          </small>
+          <small class="text-muted">
+            Last updated: ${new Date().toLocaleDateString()}
           </small>
         </div>
       </div>
@@ -544,7 +834,6 @@ function buildReportSvg() {
   if (!window.reportChartsData) window.reportChartsData = {};
   window.reportChartsData[chartId] = monthlyData;
 
-
   // Return HTML only (no <script>)
   return `
     <div style="max-width:500px; min-width:482px;" class="p-3 position-relative">
@@ -587,7 +876,7 @@ function buildReportSvg() {
         </div>
         <div class="col-6">
           <div class="bg-danger bg-gradient text-white rounded p-2 text-center">
-            <div class="h6 mb-0">$${item.revenueGenerated || '0'}</div>
+            <div class="h6 mb-0">₹${item.revenueGenerated || '0'}</div>
             <small>Revenue</small>
           </div>
         </div>
@@ -656,7 +945,7 @@ function initReportChart(chartId) {
             tension: 0.4
           },
           {
-            label: "Revenue ($)",
+            label: "Revenue (₹)",
             data: monthlyData.map(d => d.revenue),
             borderColor: "rgba(255,99,132,1)",
             backgroundColor: "rgba(255,99,132,0.2)",
@@ -689,7 +978,6 @@ function initReportChart(chartId) {
   }
 }
 
-
 function showReportPopover(event) {
   const anchor = event.currentTarget;
 
@@ -706,10 +994,15 @@ function showReportPopover(event) {
     return;
   }
 
-  // Close status popover if it's open (mutual exclusivity)
-  if (statusPopover) {
-    statusPopover.dispose();
-    statusPopover = null;
+  // Close other popovers if they're open (mutual exclusivity)
+  if (workStatusPopover) {
+    workStatusPopover.dispose();
+    workStatusPopover = null;
+  }
+  
+  if (paymentStatusPopover) {
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
   }
 
   // Clean up any existing chart and popover
@@ -907,37 +1200,6 @@ function viewDetails(item, index) {
   }, 100);
 }
 
-// Track status for a specific item
-function trackStatus(item) {
-  // Set this item as selected and trigger status tracking
-  results.value = [item];
-  
-  // Create a mock event object for the existing fetchStatusAndShow function
-  const mockEvent = {
-    currentTarget: document.querySelector('.btn[title="Track Status"]') || document.body
-  };
-  
-  fetchStatusAndShow(mockEvent);
-}
-
-// View report for a specific item
-function viewReport(item) {
-  if (!item.unitsGenerated) {
-    item.unitsGenerated = Math.floor(Math.random() * 5000) + 1000; // Random number between 1000 and 6000
-}
-
-// Check if revenue generated data exists, if not, create random data
-if (!item.revenueGenerated) {
-    item.revenueGenerated = (Math.random() * 100000).toFixed(2); // Random number up to 100,000 with 2 decimal places
-}
-
-// Now call the popover function with the updated item
-const mockEvent = {
-    currentTarget: document.querySelector('.btn[title="View Report"]') || document.body
-};
-showReportPopover(mockEvent, item);
-}
-
 // Export functionality
 function exportToCSV() {
   if (!results.value || results.value.length === 0) return;
@@ -1091,11 +1353,19 @@ onMounted(() => {
   }
   
   // Add global functions for closing popovers
-  window.closeStatusPopover = () => {
-    if (statusPopover) {
-      statusPopover.hide();
-      statusPopover.dispose();
-      statusPopover = null;
+  window.closeWorkStatusPopover = () => {
+    if (workStatusPopover) {
+      workStatusPopover.hide();
+      workStatusPopover.dispose();
+      workStatusPopover = null;
+    }
+  };
+  
+  window.closePaymentStatusPopover = () => {
+    if (paymentStatusPopover) {
+      paymentStatusPopover.hide();
+      paymentStatusPopover.dispose();
+      paymentStatusPopover = null;
     }
   };
   
@@ -1128,9 +1398,14 @@ onUnmounted(() => {
   }
   
   // Enhanced cleanup for popovers
-  if (statusPopover) {
-    statusPopover.dispose();
-    statusPopover = null;
+  if (workStatusPopover) {
+    workStatusPopover.dispose();
+    workStatusPopover = null;
+  }
+  
+  if (paymentStatusPopover) {
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
   }
   
   if (reportPopover) {
@@ -1164,17 +1439,19 @@ onUnmounted(() => {
   }
   
   // Clean up global functions
-  delete window.closeStatusPopover;
+  delete window.closeWorkStatusPopover;
+  delete window.closePaymentStatusPopover;
   delete window.closeReportPopover;
   delete window.closeMultipleResultsPopover;
 });
 </script>
 
 <template>
-  <div class="container position-sticky z-index-sticky top-0">
+  <div class="container">
     <div class="row">
       <div class="col-12">
-        <NavbarDefault :sticky="true" />
+        <!-- <NavbarDefault :sticky="true" /> -->
+        <NavbarNew :sticky="true" />
       </div>
     </div>
   </div>
@@ -1289,7 +1566,8 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="custom-table-actions">
-                <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchStatusAndShow">Track status</button>
+                <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchWorkStatusAndShow">Work Status</button>
+                <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchPaymentStatusAndShow">Payment Status</button>
                 <button type="button" class="btn btn-dark" @click="showReportPopover">View report</button>
               </div>
             </div>
@@ -1334,6 +1612,8 @@ onUnmounted(() => {
 
 <style scoped>
 .report-popover .popover-body canvas {
+  max-height: 650px;
+  overflow: auto;
   width: 100% !important;
   height: 180px !important;
 }
@@ -1367,6 +1647,8 @@ onUnmounted(() => {
 }
 
 .multiple-results-popover .popover-body {
+  max-height: 650px;
+  overflow: auto;
   padding: 0 !important;
 }
 
@@ -1704,11 +1986,18 @@ onUnmounted(() => {
 }
 
 /* Enhanced Popover Styles */
-.status-popover .popover {
-  max-width: 400px !important;
+.work-status-popover .popover,
+.payment-status-popover .popover {
+  max-width: 440px !important;
   border: none;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.2);
   border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.work-status-popover .popover-arrow::before,
+.payment-status-popover .popover-arrow::before {
+  border-top-color: #fff;
 }
 
 .report-popover .popover {
@@ -1719,12 +2008,10 @@ onUnmounted(() => {
 }
 
 .popover-body {
+  max-height: 650px;
+  overflow: auto;
   padding: 0 !important;
   position: relative !important;
-}
-
-.status-popover .popover-arrow::before {
-  border-top-color: #fff;
 }
 
 .report-popover .popover-arrow::before {
@@ -1858,13 +2145,15 @@ svg rect:hover {
     font-size: 16px !important;
   }
   
-  .status-popover .popover,
+  .work-status-popover .popover,
+  .payment-status-popover .popover,
   .report-popover .popover,
   .multiple-results-popover .popover {
     max-width: 320px !important;
   }
   
-  .status-popover .popover {
+  .work-status-popover .popover,
+  .payment-status-popover .popover {
     transform: translateX(-20px) !important;
   }
   
@@ -1942,20 +2231,57 @@ svg rect:hover {
 
 /* Custom scrollbar for popovers */
 .popover-body::-webkit-scrollbar {
+  max-height: 650px;
+  overflow: auto;
   width: 4px;
 }
 
 .popover-body::-webkit-scrollbar-track {
+  max-height: 650px;
+  overflow: auto;
   background: #f1f1f1;
   border-radius: 4px;
 }
 
 .popover-body::-webkit-scrollbar-thumb {
+  max-height: 650px;
+  overflow: auto;
   background: #888;
   border-radius: 4px;
 }
 
 .popover-body::-webkit-scrollbar-thumb:hover {
+  max-height: 650px;
+  overflow: auto;
   background: #555;
+}
+
+/* Custom scrollbar for work status and payment status */
+.work-timeline-container::-webkit-scrollbar,
+.payment-history-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.work-timeline-container::-webkit-scrollbar-track,
+.payment-history-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.work-timeline-container::-webkit-scrollbar-thumb,
+.payment-history-container::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 6px;
+}
+
+.work-timeline-container::-webkit-scrollbar-thumb:hover,
+.payment-history-container::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* Ensure smooth scrolling */
+.work-timeline-container,
+.payment-history-container {
+  scroll-behavior: smooth;
 }
 </style>

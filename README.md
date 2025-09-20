@@ -16,8 +16,8 @@ Energy Solar aims to be a trusted leader in the renewable energy sector. Our vis
 - **Lowest Pricing:** We offer competitive pricing to make solar energy accessible to everyone.
 - **High-Quality Standards:** We use top-grade panels and components from leading manufacturers.
 - **End-to-End Service:** From system design to installation and maintenance, we handle everything.
-- **Experience & Expertise:** Our team has a proven track record with over 800 MW of ground-mounted projects.
-- **Eco-Friendly Commitment:** Our solutions are designed to reduce electricity costs and carbon footprints.
+- **Experience & Expertise:** Our team has a proven track record with over 867 MW of ground-mounted projects.
+- **7 Years Complete AMC:** Our solutions are designed to reduce electricity costs and carbon footprints.
 - **Quick Installation:** We promise installation within 100 days and a 25-year plant service promise.
 
 ## Services & Expertise

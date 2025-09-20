@@ -12,8 +12,8 @@ import DefaultCounterCard from "../../../examples/cards/counterCards/DefaultCoun
               <DefaultCounterCard
                 color="warning"
                 title="Ground-Mounted Projects"
-                description="With a proven track record of over 800 MW in ground-mounted projects across India, we have the expertise to handle any project."
-                :count="800"
+                description="With a proven track record of over 867 MW in ground-mounted projects across India, we have the expertise to handle any project."
+                :count="867"
                 suffix="MW"
                 :duration="3000"
                 divider="vertical"
