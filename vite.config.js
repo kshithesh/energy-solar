@@ -11,4 +11,18 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        logger: {
+          warn(message, options) {
+            if (options.deprecation) {
+              return;
+            }
+            console.warn(message);
+          },
+        },
+      },
+    },
+  },
 });
