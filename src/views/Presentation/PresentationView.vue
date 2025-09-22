@@ -1345,7 +1345,7 @@ let documentPopover = null;
 function extractDocuments(item) {
   if (!item || typeof item !== 'object') return [];
 
-  const documentFields = ['1B', 'AADHAR', 'ITR', 'LOA', 'Land Document', 'PAN', 'PPA', 'Patta Passbook', 'Image'];
+  const documentFields = ['1B', 'AADHAR', 'ITR', 'LOA', 'PAN', 'PPA', 'Patta Passbook', 'Image'];
   const documents = [];
 
   function traverse(field, value) {
@@ -1515,7 +1515,6 @@ function getDocumentIcon(docType) {
     'AADHAR': 'badge',
     'ITR': 'receipt',
     'LOA': 'assignment',
-    'Land Document': 'map',
     'PAN': 'credit_card',
     'PPA': 'description',
     'Patta Passbook': 'book',

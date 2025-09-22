@@ -8,6 +8,7 @@ import project2 from "@/assets/img/project-2.jpg"
 import project3 from "@/assets/img/project-3.jpg"
 import project4 from "@/assets/img/project-4.jpg"
 import project5 from "@/assets/img/project-5.jpg"
+import projectEstimation from "@/assets/img/Energy-Solar-Final-Estimate.pdf"
 
 const isModalOpen = ref(false)
 const visibleMobileNumbers = ref(new Set())
@@ -95,7 +96,7 @@ defineProps({
       },
       {
         name: "Project Estimates",
-        items: []
+        items: [{ name: "Click here", href: projectEstimation },]
       },
       {
         name: "Contact and Business Information",
@@ -119,59 +120,45 @@ defineProps({
         items: [
           {
             name: "End to End EPC",
-            href: "#"
           },
           {
             name: "DPR's (Detailed Project Report)",
-            href: "#"
           },
           {
             name: "Detailed Design and Engineering",
-            href: "#"
           },
           {
             name: "Technical Due Deligence",
-            href: "#"
           },
           {
             name: "Solar Plant Restoration",
-            href: "#"
           },
           {
             name: "Technical Evaluation",
-            href: "#"
           },
           {
             name: "Engineering, Procurement & Construction",
-            href: "#"
           },
           {
             name: "Techno-Economics Viability Report",
-            href: "#"
           },
           {
             name: "Project Monitoring and Consultancy",
-            href: "#"
           },
           {
             name: "Feasibility Study",
-            href: "#"
           },
           {
             name: "Operation and Maintenance",
-            href: "#"
           },
           {
             name: "Audit; Plant Performance Optimization",
-            href: "#"
           },
           {
             name: "Pre-bid Support",
-            href: "#"
           },
           {
             name: "Root Cause Analysis",
-            href: "#"
           }
         ]
       },
@@ -436,8 +423,7 @@ const splitServicesIntoColumns = (items) => {
 
 .footer-content {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
+  gap: 0.5rem;
   margin-bottom: 2rem;
 }
 
@@ -483,7 +469,7 @@ const splitServicesIntoColumns = (items) => {
 /* Responsive Design */
 @media (max-width: 1024px) {
   .footer-content {
-    gap: 1.5rem;
+    gap: 0.5rem;
   }
   
   .services-section {
@@ -494,7 +480,6 @@ const splitServicesIntoColumns = (items) => {
   .brand-section {
     margin-left: 0;
     order: -1;
-    width: 100%;
   }
 }
 
@@ -508,7 +493,6 @@ const splitServicesIntoColumns = (items) => {
   .menu-section,
   .services-section {
     flex: none;
-    width: 100%;
     min-width: unset;
   }
   
