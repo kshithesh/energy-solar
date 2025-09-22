@@ -47,11 +47,24 @@ const tableSearchQuery = ref('');
 const sortColumn = ref('');
 const sortDirection = ref('asc');
 
+window.downloadDocument = function(url, fileName) {
+  if (!url || url === '#') return;
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName || 'document';
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
   const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c80de69e00b4024065e3aa/data";
-  const apiKey = "f5e03ff86d7a30cd81fd6fa71840c260";
-  const apiSecret = "cc998af2eeac6b0e5756175983fa602d56ff09576f039ed2a5d31b8edbb89c56";
+  const apiKey = "13ab5baef1563730525effd770dc2cf8";
+  const apiSecret = "62097b5475faeb4e97e7198c48c9a5798d4aff254364969e1dfaa257258fefe3";
 
   try {
     const url = new URL(baseUrl);
@@ -75,7 +88,6 @@ async function searchExternalApi(query) {
     }
 
     const data = await response.json();
-    console.log("SPDCL API response:", data);
 
     // Handle direct array response
     if (Array.isArray(data)) {
@@ -439,6 +451,23 @@ async function fetchWorkStatusAndShow(event) {
       customClass: 'work-status-popover'
     });
     workStatusPopover.show();
+    // Close popover when clicking outside
+    function handleDocumentClick(e) {
+      if (
+        workStatusPopover &&
+        !anchor.contains(e.target) &&
+        !document.querySelector('.work-status-popover')?.contains(e.target)
+      ) {
+        workStatusPopover.hide();
+        workStatusPopover.dispose();
+        workStatusPopover = null;
+        document.removeEventListener('click', handleDocumentClick);
+      }
+    }
+
+    setTimeout(() => { 
+      document.addEventListener('click', handleDocumentClick);
+    }, 0);
   }
 }
 
@@ -666,6 +695,23 @@ async function fetchPaymentStatusAndShow(event) {
       customClass: 'payment-status-popover'
     });
     paymentStatusPopover.show();
+    // Close popover when clicking outside
+    function handleDocumentClick(e) {
+      if (
+        paymentStatusPopover &&
+        !anchor.contains(e.target) &&
+        !document.querySelector('.payment-status-popover')?.contains(e.target)
+      ) {
+        paymentStatusPopover.hide();
+        paymentStatusPopover.dispose();
+        paymentStatusPopover = null;
+        document.removeEventListener('click', handleDocumentClick);
+      }
+    }
+
+    setTimeout(() => { 
+      document.addEventListener('click', handleDocumentClick);
+    }, 0);
   }
 }
 
@@ -788,8 +834,6 @@ function buildPaymentStatusPopoverHtml() {
     </div>
   `;
 }
-
-let lastReportChartId = null;
 
 // Replace the buildReportSvg() function with this updated version
 function buildReportSvg() {
@@ -1062,6 +1106,27 @@ function showReportPopover(event) {
     
     initReportChart(chartId);
   }, 100); // Increased timeout to ensure DOM is ready
+  function handleDocumentClick(e) {
+    const popoverEl = document.querySelector(".report-popover");
+    if (
+      reportPopover &&
+      !anchor.contains(e.target) &&
+      !(popoverEl && popoverEl.contains(e.target))
+    ) {
+      if (window.reportChart) {
+        window.reportChart.destroy();
+        window.reportChart = null;
+      }
+      reportPopover.hide();
+      reportPopover.dispose();
+      reportPopover = null;
+      document.removeEventListener('click', handleDocumentClick);
+    }
+  }
+
+  setTimeout(() => {
+    document.addEventListener('click', handleDocumentClick);
+  }, 0);
 }
 
 // Helper function to get cell value and handle different data types
@@ -1270,6 +1335,204 @@ function printTable() {
   printWindow.print();
 }
 
+// Document Viewer functionality
+const documentLoading = ref(false);
+const documentError = ref("");
+const documentData = ref(null);
+let documentPopover = null;
+
+// Function to extract document information from the API response
+function extractDocuments(item) {
+  if (!item || typeof item !== 'object') return [];
+
+  const documentFields = ['1B', 'AADHAR', 'ITR', 'LOA', 'Land Document', 'PAN', 'PPA', 'Patta Passbook', 'Image'];
+  const documents = [];
+
+  function traverse(field, value) {
+    if (Array.isArray(value)) {
+      value.forEach(v => traverse(field, v));
+    } else if (typeof value === 'string') {
+      // It's the actual file URL
+      documents.push({
+        type: field,
+        name: `${field} Document`,
+        url: value,
+        uploadDate: '',
+        size: 0
+      });
+    } else if (typeof value === 'object' && value !== null) {
+      // If object, try to find nested urls or file objects
+      Object.values(value).forEach(v => traverse(field, v));
+    }
+  }
+
+  documentFields.forEach(field => {
+    if (item[field]) traverse(field, item[field]);
+  });
+
+  return documents;
+}
+
+
+function showDocumentsPopover(event) {
+  const anchor = event.currentTarget;
+
+  if (documentPopover && documentPopover._element === anchor) {
+    documentPopover.hide();
+    documentPopover.dispose();
+    documentPopover = null;
+    return;
+  }
+
+  if (documentPopover) { documentPopover.dispose(); documentPopover = null; }
+
+  const item = selectedItem.value;
+  if (!item) return;
+
+  documentData.value = {
+    applicationNo: item['Application No'] || 'Unknown',
+    clientName: item['Farmer Name(Applicant Name)'] || 'Unknown',
+    documents: extractDocuments(item)
+  };
+
+  const html = buildDocumentsPopoverHtml();
+  documentPopover = new Popover(anchor, {
+    html: true,
+    content: html,
+    placement: 'top',
+    customClass: 'documents-popover-wrapper'
+  });
+
+  documentPopover.show();
+
+    anchor.addEventListener('shown.bs.popover', () => {
+    const popoverEl = document.querySelector('.documents-popover');
+    if (!popoverEl) return;
+
+    popoverEl.addEventListener('click', (e) => {
+      const docItem = e.target.closest('.document-item');
+      if (!docItem) return;
+
+      const docName = docItem.querySelector('.fw-bold').textContent;
+      const docUrl = docItem.getAttribute('data-url');
+
+      const requireDocument = documentData.value.documents.find(doc => doc.name === docName);
+
+      if (requireDocument.url && requireDocument.url !== '#') {
+        window.open(requireDocument.url, '_blank'); // Open in new tab
+      } else {
+        alert('Document URL not available!');
+      }
+    });
+  }, { once: true });
+
+   // Close popover when clicking outside
+  function handleDocumentClick(e) {
+    const popoverEl = document.querySelector('.documents-popover-wrapper');
+    if (
+      documentPopover &&
+      !anchor.contains(e.target) &&
+      !(popoverEl && popoverEl.contains(e.target))
+    ) {
+      documentPopover.hide();
+      documentPopover.dispose();
+      documentPopover = null;
+      document.removeEventListener('click', handleDocumentClick);
+    }
+  }
+
+  setTimeout(() => {
+    document.addEventListener('click', handleDocumentClick);
+  }, 0);
+
+}
+
+
+function buildDocumentsPopoverHtml() {
+  if (documentLoading.value) {
+    return '<div class="py-3 text-center"><div class="spinner-border spinner-border-sm text-primary"></div><div class="mt-2">Loading documents...</div></div>';
+  }
+
+  if (documentError.value) {
+    return `<div class="text-center p-4">
+              <div class="text-muted mb-3"><i class="material-icons" style="font-size: 48px;">folder_off</i></div>
+              <h6 class="text-muted">Documents Not Available</h6>
+              <p class="text-muted small">${documentError.value}</p>
+            </div>`;
+  }
+
+  const data = documentData.value || {};
+  const documents = data.documents || [];
+  console.log('Extracted documents:', documents);
+
+  const documentsHtml = `
+    <div class="documents-popover" style="max-height:400px; overflow-y:auto;">
+      ${documents.map((doc) => `
+        <div class="d-flex align-items-center justify-content-between p-3 border-bottom document-item cursor-pointer"
+            data-url="${doc.url}"
+            onclick="this.getAttribute('data-url')">
+          <div class="d-flex align-items-center">
+            <div class="document-icon me-3">
+              <i class="material-icons" style="font-size: 28px;">${getDocumentIcon(doc.type)}</i>
+            </div>
+            <div>
+              <div class="fw-bold">${doc.name}</div>
+              <div class="small text-muted">${doc.type} • ${formatFileSize(doc.size)} • ${doc.uploadDate}</div>
+            </div>
+          </div>
+          <div class="text-muted"><i class="material-icons">open_in_new</i></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  return `
+    <div style="max-width:500px; min-width:400px;" class="position-relative">
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-2" onclick="closeDocumentsPopover()" aria-label="Close"></button>
+      <div class="p-3 border-bottom bg-light">
+        <div class="d-flex align-items-center">
+          <i class="material-icons me-2" style="font-size: 20px;">folder</i>
+          <div>
+            <div class="fw-bold h6 mb-0">Client Documents</div>
+            <div class="small text-muted">${data.applicationNo || 'Unknown'}</div>
+          </div>
+        </div>
+      </div>
+      ${documentsHtml}
+      <div class="p-3 border-top bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted">${documents.length} document(s) available</small>
+          <small class="text-muted">Client: ${data.clientName || 'Unknown'}</small>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getDocumentIcon(docType) {
+  const iconMap = {
+    '1B': 'data_usage',
+    'AADHAR': 'badge',
+    'ITR': 'receipt',
+    'LOA': 'assignment',
+    'Land Document': 'map',
+    'PAN': 'credit_card',
+    'PPA': 'description',
+    'Patta Passbook': 'book',
+    'Image': 'image'
+  };
+  
+  return iconMap[docType] || 'description';
+}
+
+function formatFileSize(size) {
+  if (!size || size === 'N/A') return 'N/A';
+  
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(size) / Math.log(1024));
+  return Math.round(size / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+}
+
 async function onHeroSearch() {
   const trimmed = heroQuery.value.trim();
   if (!trimmed) {
@@ -1389,6 +1652,15 @@ onMounted(() => {
       multipleResultsPopover = null;
     }
   };
+
+  // global function for closing documents popover
+  window.closeDocumentsPopover = () => {
+    if (documentPopover) {
+      documentPopover.hide();
+      documentPopover.dispose();
+      documentPopover = null;
+    }
+  };
 });
 
 onUnmounted(() => {
@@ -1437,6 +1709,14 @@ onUnmounted(() => {
     });
     window.reportChartsData = {};
   }
+  if (documentPopover) {
+    documentPopover.dispose();
+    documentPopover = null;
+  }
+  
+  // Clean up global functions
+  delete window.downloadDocument;
+  delete window.closeDocumentsPopover;
   
   // Clean up global functions
   delete window.closeWorkStatusPopover;
@@ -1550,10 +1830,13 @@ onUnmounted(() => {
                 <h1>Energy Solar Client Details</h1>
                 <!-- Passport Image -->
               <img 
-                src="/src/assets/img/user-img.jpg" 
+                :src="(results[0].Image && results[0].Image[0] && results[0].Image[0][0]) 
+                        ? results[0].Image[0][0] 
+                        : '/src/assets/img/user-img.jpg'" 
                 alt="Client Photo" 
                 class="passport-image"
               />
+
               </div>
               <div class="custom-table-header">
                 <div class="header-item">FIELD</div>
@@ -1568,7 +1851,8 @@ onUnmounted(() => {
               <div class="custom-table-actions">
                 <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchWorkStatusAndShow">Work Status</button>
                 <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="fetchPaymentStatusAndShow">Payment Status</button>
-                <button type="button" class="btn btn-dark" @click="showReportPopover">View report</button>
+                <button type="button" class="btn btn-dark" style="margin-right: 10px;" @click="showReportPopover">View report</button>
+                <button type="button" class="btn btn-dark" @click="showDocumentsPopover">View Documents</button>
               </div>
             </div>
           </div>
@@ -1611,6 +1895,51 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+
+/* Document Viewer Styles */
+.documents-popover .popover {
+  max-width: 500px !important;
+  border: none;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+  border-radius: 12px;
+}
+
+.documents-popover .popover-arrow::before {
+  border-top-color: #fff;
+}
+
+.document-item {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.document-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+}
+
+.document-icon {
+  color: #6c757d;
+}
+
+/* Custom scrollbar for documents container */
+.documents-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.documents-container::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.documents-container::-webkit-scrollbar-thumb {
+  background: #dee2e6;
+  border-radius: 6px;
+}
+
+.documents-container::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
 .report-popover .popover-body canvas {
   max-height: 650px;
   overflow: auto;
