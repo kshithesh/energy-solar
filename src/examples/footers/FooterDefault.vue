@@ -90,7 +90,7 @@ defineProps({
       {
         name: "Previous Project Photos",
         items: [
-          { name: "Click here", href: "https://drive.google.com/drive/folders/your-folder-id-here" },
+          { name: "Click here", href: "https://drive.google.com/drive/folders/1NnuHOgNcZdisqqQ7ucVESkN_mBbMC5G6?usp=sharing" },
         ]
       },
       {
