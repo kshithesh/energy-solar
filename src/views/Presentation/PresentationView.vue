@@ -50,8 +50,8 @@ const sortDirection = ref('asc');
 // Updated API call logic for WiseMelon API
 async function searchExternalApi(query) {
   const baseUrl = "https://api.wisemelon.ai/api/external/collection/68c80de69e00b4024065e3aa/data";
-  const apiKey = "da142bb691b1db9e0fa5596d02eaf364";
-  const apiSecret = "c9dd38093a657801db2a0075afc0d949b769f576d5434aed2c8ea635ca981031";
+  const apiKey = "f5e03ff86d7a30cd81fd6fa71840c260";
+  const apiSecret = "cc998af2eeac6b0e5756175983fa602d56ff09576f039ed2a5d31b8edbb89c56";
 
   try {
     const url = new URL(baseUrl);

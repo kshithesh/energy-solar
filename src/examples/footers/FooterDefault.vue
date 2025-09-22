@@ -10,6 +10,8 @@ import project4 from "@/assets/img/project-4.jpg"
 import project5 from "@/assets/img/project-5.jpg"
 
 const isModalOpen = ref(false)
+const visibleMobileNumbers = ref(new Set())
+
 const projectImages = ref([
   { id: 1, src: project1 },
   { id: 2, src: project2 },
@@ -50,7 +52,7 @@ defineProps({
         items: [
           {
             name: "Ashwin Reddy",
-            role: "Operations Head",
+            role: "Chief Executive Officer",
             mobileNo: "9849812447"
           },
           {
@@ -82,6 +84,33 @@ defineProps({
             name: "Anil Kumar",
             role: "Material Procurement SPOC",
             mobileNo: "9963349168"
+          }
+        ]
+      },
+      {
+        name: "Previous Project Photos",
+        items: [
+          { name: "Click here", href: "https://drive.google.com/drive/folders/your-folder-id-here" },
+        ]
+      },
+      {
+        name: "Project Estimates",
+        items: []
+      },
+      {
+        name: "Contact and Business Information",
+        items: [
+          {
+            name: "Location",
+            href: "https://maps.app.goo.gl/3o9dYoiif5rcJtqv7"
+          },
+          {
+            name: "Phone",
+            href: "tel:+919849812447"
+          },
+          {
+            name: "Email",
+            href: "mailto:support@energysolar.company"
           }
         ]
       },
@@ -146,33 +175,7 @@ defineProps({
           }
         ]
       },
-      {
-        name: "Previous Project Photos",
-        items: [
-          { name: "Click here", action: "openModal" },
-        ]
-      },
-      {
-        name: "Project Estimates",
-        items: []
-      },
-      {
-        name: "Contact and Business Information",
-        items: [
-          {
-            name: "Location",
-            href: "https://maps.app.goo.gl/3o9dYoiif5rcJtqv7"
-          },
-          {
-            name: "Phone",
-            href: "tel:+919849812447"
-          },
-          {
-            name: "Email",
-            href: "mailto:support@energysolar.company"
-          }
-        ]
-      }
+      
     ]
   }
 });
@@ -194,14 +197,49 @@ const handleItemClick = (item) => {
     window.open(item.href, '_blank');
   }
 };
+
+// Function to toggle mobile number visibility
+const toggleMobileNumber = (itemName) => {
+  const newSet = new Set(visibleMobileNumbers.value);
+  if (newSet.has(itemName)) {
+    newSet.delete(itemName);
+  } else {
+    newSet.add(itemName);
+  }
+  visibleMobileNumbers.value = newSet;
+};
+
+// Function to check if mobile number should be visible
+const isMobileNumberVisible = (itemName) => {
+  return visibleMobileNumbers.value.has(itemName);
+};
+
+// Function to get contact tooltip text
+const getContactTooltip = (item) => {
+  if (item.name === 'Phone') {
+    return '+91 98498 12447';
+  } else if (item.name === 'Email') {
+    return 'support@energysolar.company';
+  }
+  return '';
+};
+
+// Function to split services into two columns
+const splitServicesIntoColumns = (items) => {
+  const midpoint = Math.ceil(items.length / 2);
+  return {
+    column1: items.slice(0, midpoint),
+    column2: items.slice(midpoint)
+  };
+};
 </script>
 
 <template>
   <footer class="footer pt-5 mt-5">
-    <div class="container">
-      <div class="row">
+    <div class="footer-container">
+      <div class="footer-content">
         <!-- Brand + Socials -->
-        <div class="col-md-2 mb-4 ms-auto">
+        <div class="brand-section">
           <div>
             <a :href="brand.route">
               <img :src="brand.logo" class="mb-3 footer-logo" alt="main_logo" />
@@ -209,7 +247,7 @@ const handleItemClick = (item) => {
             <h6 class="font-weight-bolder mb-4">{{ brand.name }}</h6>
           </div>
           <div>
-            <ul class="d-flex flex-row ms-n3 nav">
+            <ul class="social-links">
               <li
                 class="nav-item"
                 v-for="{ icon, link } of socials"
@@ -228,49 +266,108 @@ const handleItemClick = (item) => {
         </div>
 
         <!-- Menus -->
-        <div
-          class="col-md-2 col-sm-6 col-6 mb-4"
-          v-for="{ name, items } of menus"
-          :key="name"
-        >
-          <h6 class="text-sm">{{ name }}</h6>
-          <ul class="flex-column ms-n3 nav">
-            <li class="nav-item" v-for="item of items" :key="item.name">
-              <button
-                v-if="item.action"
-                @click="handleItemClick(item)"
-                class="nav-link btn btn-link p-0 text-start text-decoration-none"
-                style="border: none; background: none; color: #f39c12;"
-              >
-                {{ item.name }}
-              </button>
-              <a
-                v-else-if="item.href"
-                class="nav-link"
-                :href="item.href"
-                target="_blank"
-              >
-                {{ item.name }}
-              </a>
-
-              <div v-else-if="item.role" class="nav-link d-flex flex-column">
-                <span class="fw-bold">{{ item.name }}</span>
-                <small class="text-muted">{{ item.role }}</small>
-                <small class="text-muted">📞 {{ item.mobileNo }}</small>
+        <template v-for="{ name, items } of menus" :key="name">
+          <!-- Special handling for Services & Expertise with two columns -->
+          <div v-if="name === 'Services & Expertise'" class="services-section">
+            <h6 class="text-sm">{{ name }}</h6>
+            <div class="services-columns">
+              <!-- First Column -->
+              <div class="services-column">
+                <ul class="flex-column ms-n3 nav">
+                  <li 
+                    class="nav-item" 
+                    v-for="item of splitServicesIntoColumns(items).column1" 
+                    :key="item.name"
+                  >
+                    <a
+                      class="nav-link"
+                      :href="item.href"
+                      target="_blank"
+                    >
+                      {{ item.name }}
+                    </a>
+                  </li>
+                </ul>
               </div>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Footer Bottom -->
-        <div class="col-12">
-          <div class="text-center">
-            <p class="text-dark my-4 text-sm font-weight-normal">
-              All rights reserved. Copyright ©
-              {{ new Date().getFullYear() }}
-              Energy Solar
-            </p>
+              <!-- Second Column -->
+              <div class="services-column">
+                <ul class="flex-column ms-n3 nav">
+                  <li 
+                    class="nav-item" 
+                    v-for="item of splitServicesIntoColumns(items).column2" 
+                    :key="item.name"
+                  >
+                    <a
+                      class="nav-link"
+                      :href="item.href"
+                      target="_blank"
+                    >
+                      {{ item.name }}
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
+
+          <!-- Regular handling for other menu sections -->
+          <div v-else class="menu-section">
+            <h6 class="text-sm">{{ name }}</h6>
+            <ul class="flex-column ms-n3 nav">
+              <li class="nav-item" v-for="item of items" :key="item.name">
+                <button
+                  v-if="item.action"
+                  @click="handleItemClick(item)"
+                  class="nav-link btn btn-link p-0 text-start text-decoration-none"
+                  style="border: none; background: none; color: #f39c12;"
+                >
+                  {{ item.name }}
+                </button>
+                <a
+                  v-else-if="item.href"
+                  class="nav-link"
+                  :class="{ 
+                    'contact-link phone-link': item.name === 'Phone',
+                    'contact-link email-link': item.name === 'Email' 
+                  }"
+                  :href="item.href"
+                  target="_blank"
+                  :data-tooltip="item.name === 'Phone' || item.name === 'Email' ? getContactTooltip(item) : ''"
+                >
+                  {{ item.name }}
+                </a>
+
+                <div v-else-if="item.role" class="nav-link d-flex flex-column mb-2">
+                  <button
+                    @click="toggleMobileNumber(item.name)"
+                    class="team-member-btn btn btn-link p-0 text-start text-decoration-none mb-0"
+                    style="border: none; background: none; color: inherit;"
+                  >
+                    <span class="fw-bold">{{ item.name }}</span> <br>
+                    <small class="text-muted">({{ item.role }})</small>
+                  </button>
+                  <div 
+                    v-if="isMobileNumberVisible(item.name)" 
+                    class="mobile-number-container mt-1"
+                    style="margin-left: 0;"
+                  >
+                    <small class="text-muted">📞 {{ item.mobileNo }}</small>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </template>
+      </div>
+
+      <!-- Footer Bottom -->
+      <div class="footer-bottom">
+        <div class="text-center">
+          <p class="text-dark my-4 text-sm font-weight-normal">
+            All rights reserved. Copyright ©
+            {{ new Date().getFullYear() }}
+            Energy Solar
+          </p>
         </div>
       </div>
     </div>
@@ -330,6 +427,219 @@ const handleItemClick = (item) => {
 </template>
 
 <style scoped>
+/* Footer Flexbox Layout */
+.footer-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.brand-section {
+  flex: 0 0 auto;
+  min-width: 200px;
+  margin-left: auto;
+}
+
+.menu-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.services-section {
+  flex: 2;
+  min-width: 300px;
+}
+
+.services-columns {
+  display: flex;
+  gap: 1rem;
+}
+
+.services-column {
+  flex: 1;
+}
+
+.footer-bottom {
+  width: 100%;
+  border-top: 1px solid #e9ecef;
+  padding-top: 1rem;
+}
+
+.social-links {
+  display: flex;
+  flex-direction: row;
+  margin-left: -0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .footer-content {
+    gap: 1.5rem;
+  }
+  
+  .services-section {
+    flex: 1;
+    min-width: 250px;
+  }
+  
+  .brand-section {
+    margin-left: 0;
+    order: -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .brand-section,
+  .menu-section,
+  .services-section {
+    flex: none;
+    width: 100%;
+    min-width: unset;
+  }
+  
+  .services-columns {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .services-column {
+    width: 100%;
+  }
+  
+  .footer-container {
+    padding: 0 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-content {
+    gap: 0.5rem;
+  }
+  
+  .brand-section {
+    text-align: center;
+  }
+  
+  .social-links {
+    justify-content: center;
+  }
+}
+
+/* Contact Link Tooltips */
+.contact-link {
+  position: relative;
+  cursor: pointer;
+}
+
+.contact-link::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 1000;
+  margin-bottom: 5px;
+}
+
+.contact-link::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.contact-link:hover::after,
+.contact-link:hover::before {
+  opacity: 1;
+}
+
+.phone-link::after {
+  background: linear-gradient(135deg, #f39c12 0%, #f39c12 100%);
+}
+
+.phone-link::before {
+  border-top-color: #f39c12;;
+}
+
+.email-link::after {
+  background: linear-gradient(135deg, #f39c12 0%, #f39c12 100%);
+}
+
+.email-link::before {
+  border-top-color: #f39c12;;
+}
+
+/* Team member button styling */
+.team-member-btn {
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.team-member-btn:hover {
+  color: #f39c12 !important;
+}
+
+.team-member-btn:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.mobile-number-container {
+  animation: slideDown 0.3s ease-out;
+  transform-origin: top;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 50px;
+  }
+}
+
+/* Services & Expertise styling adjustments */
+.services-section .nav-link {
+  font-size: 0.85rem;
+  padding: 0.25rem 1rem;
+  line-height: 1.3;
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -507,57 +817,6 @@ const handleItemClick = (item) => {
   to { 
     opacity: 1;
     transform: translateY(0) scale(1);
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .modal-content {
-    width: 95vw;
-    margin: 20px;
-  }
-  
-  .modal-header {
-    padding: 15px 20px;
-  }
-  
-  .modal-title {
-    font-size: 1.2rem;
-  }
-  
-  .modal-body {
-    padding: 20px;
-  }
-  
-  .image-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  
-  .project-image {
-    height: 200px;
-  }
-}
-
-@media (max-width: 480px) {
-  .modal-content {
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    max-width: none;
-    max-height: none;
-  }
-  
-  .modal-body {
-    max-height: calc(100vh - 140px);
-  }
-  
-  .image-grid {
-    gap: 15px;
-  }
-  
-  .project-image {
-    height: 180px;
   }
 }
 
