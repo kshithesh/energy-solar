@@ -746,9 +746,8 @@ function buildPaymentStatusPopoverHtml() {
             </span>
           </div>
           <div class="small text-muted">
-            ${payment.date ? `Paid on: ${new Date(payment.date).toLocaleDateString()}` : 'Payment pending'}
+            ${payment.amount ? `Paid` : 'Payment pending'}
           </div>
-          ${payment.reference ? `<div class="small text-muted">Ref: ${payment.reference}</div>` : ''}
         </div>
         <div class="text-end">
           <div class="fw-bold">₹${payment.amount.toLocaleString()}</div>
