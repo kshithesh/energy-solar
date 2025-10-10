@@ -8,7 +8,7 @@ import project2 from "@/assets/img/project-2.jpg"
 import project3 from "@/assets/img/project-3.jpg"
 import project4 from "@/assets/img/project-4.jpg"
 import project5 from "@/assets/img/project-5.jpg"
-import projectEstimation from "@/assets/img/Energy-Solar-Final-Estimate.pdf"
+// import projectEstimation from "@/assets/img/Energy-Solar-Final-Estimate.pdf"
 
 const isModalOpen = ref(false)
 const visibleMobileNumbers = ref(new Set())
@@ -54,49 +54,59 @@ defineProps({
           {
             name: "Ashwin Reddy",
             role: "Chief Executive Officer",
-            mobileNo: "9849812447"
+            emailId: "ashwinreddy.annadi@gmail.com"
           },
           {
             name: "Raj Reddy",
             role: "Chief Financial Officer",
-            mobileNo: "8897192974"
+            emailId: "ronypolepaka19@gmail.com"
           },
           {
             name: "Arshad",
             role: "Appointments SPOC",
-            mobileNo: "9966295529"
+            emailId: "arshadagr@gmail.com"
           },
           {
             name: "Sridhar",
             role: "REDCO Process SPOC",
-            mobileNo: "7672034084"
+            emailId: "sridhar.energysolar@gmail.com"
           },
           {
             name: "Marka Abhinay",
             role: "Banking Process SPOC",
-            mobileNo: "9553563073"
+            emailId: "abhinayenergysolar@gmail.com"
           },
           {
             name: "Ravi Teja",
             role: "Technical Challenges SPOC",
-            mobileNo: "9390853265"
+            emailId: "raviteja.energysolar@gmail.com"
           },
           {
             name: "Anil Kumar",
             role: "Material Procurement SPOC",
-            mobileNo: "9963349168"
+            emailId: "anil.energysolar@gmail.com"
+          },
+          {
+            name: "Sampath",
+            role: "Sales SPOC",
+            emailId: "sampath.energysolar@gmail.com"
+          },
+          {
+            name: "Pravallika Chintha",
+            role: "Appointments SPOC",
+            emailId: "pravallikachintha0304@gmail.com"
           }
         ]
       },
       {
-        name: "Previous Project Photos",
+        name: "Closed Clients",
         items: [
-          { name: "Click here", href: "https://drive.google.com/drive/folders/1NnuHOgNcZdisqqQ7ucVESkN_mBbMC5G6?usp=sharing" },
+          { name: "Click here", href: "https://drive.google.com/drive/folders/1bdF78XQjzP0bpxqiGoXoLScNEHkYCvmA?usp=sharing" },
         ]
       },
       {
         name: "Project Estimates",
-        items: [{ name: "Click here", href: projectEstimation },]
+        items: [{ name: "Click here", href: "https://drive.google.com/file/d/1dOV7cbABFuHXtmEyuM1Y1NWhWujyEOiI/view?usp=sharing" },]
       },
       {
         name: "Contact and Business Information",
@@ -336,9 +346,22 @@ const splitServicesIntoColumns = (items) => {
                   <div 
                     v-if="isMobileNumberVisible(item.name)" 
                     class="mobile-number-container mt-1"
-                    style="margin-left: 0;"
+                    style="margin-left: 0; max-width: 100%;"
                   >
-                    <small class="text-muted">📞 {{ item.mobileNo }}</small>
+                    <small 
+                      class="text-muted truncate-email" 
+                      title="{{ item.emailId }}"
+                      style="
+                        display: inline-block;
+                        max-width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        vertical-align: bottom;
+                      "
+                    >
+                      ✉ {{ item.emailId }}
+                    </small>
                   </div>
                 </div>
               </li>

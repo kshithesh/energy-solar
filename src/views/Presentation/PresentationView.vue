@@ -4,17 +4,13 @@ import { Modal, Popover } from "bootstrap";
 import Chart from 'chart.js/auto';
 
 //example components
-import NavbarDefault from "../..//examples/navbars/NavbarDefault.vue";
 import DefaultFooter from "../../examples/footers/FooterDefault.vue";
 import Header from "../../examples/Header.vue";
 
-//Vue Material Kit 2 components
-import MaterialSocialButton from "@/components/MaterialSocialButton.vue";
-
 // sections
 import PresentationCounter from "./Sections/PresentationCounter.vue";
-import PresentationTestimonials from "./Sections/PresentationTestimonials.vue";
 import PresentationInformation from "./Sections/PresentationInformation.vue";
+import PresentationScrollingImg from "./Sections/PresentationScrollingImg.vue";
 
 //images
 import vueMkHeader from "@/assets/img/Energy-Solar-background.jpg";
@@ -41,11 +37,6 @@ let workStatusPopover = null;
 let paymentStatusPopover = null;
 let reportPopover = null;
 let multipleResultsPopover = null; // New popover for multiple results
-
-// New reactive variables for enhanced table
-const tableSearchQuery = ref('');
-const sortColumn = ref('');
-const sortDirection = ref('asc');
 
 window.downloadDocument = function(url, fileName) {
   if (!url || url === '#') return;
@@ -131,70 +122,96 @@ async function searchExternalApi(query) {
   }
 }
 
-// Computed property to extract dynamic columns from the first result
-const tableColumns = computed(() => {
-  if (!results.value || results.value.length === 0) {
-    return [];
-  }
-  
-  const firstItem = results.value[0];
-  return Object.keys(firstItem).map(key => ({
-    key: key,
-    label: formatColumnLabel(key)
-  }));
-});
+// Payment status
+async function searchSecondApi(query) {
+  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68d0fca7f1f7ce71243537f1/data";
+  const apiKey = "8685a85b989fa7bdebb7c55e895de55b";
+  const apiSecret = "4a15e6fdadbf53ca0df2995e3f9bc6a9fcf3e3f39ce4bd44981b4f650f7f9d58";
 
-// Enhanced table columns with better formatting
-const enhancedTableColumns = computed(() => {
-  if (!results.value || results.value.length === 0) {
-    return [];
-  }
-  
-  const firstItem = results.value[0];
-  
-  // Define the specific fields you want to display in order
-  const requiredFields = [
-  'Client Id',
-  'Farmer Name(Applicant Name)',
-  'Application No',
-  'Mobile Number',
-  'Email ID',
-  'EMD Paid Capacity (MW)',
-  'Location Circle',
-  'Location Division',
-  'Location Section',
-  'Distance of proposed land and sub station (KM)',
-  'Location Sub Station',
-  'Status'
-  ];
-  
-  // Only include fields that exist in the data and are in our required list
-  const availableColumns = requiredFields
-    .filter(field => field in firstItem)
-    .map(key => ({
-      key: key,
-      label: getFriendlyLabelForKey(key),
-      sortable: true,
-      searchable: true
-    }));
-  
-  return availableColumns;
-});
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.set("limit", "10");
+    url.searchParams.set("skip", "0");
+    // if (query && query.trim() !== "") {
+    //   url.searchParams.set("query", query.trim());
+    // }
+    const headers = {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "x-api-secret": apiSecret
+    };
 
-// Table search/filter functionality
-const filteredResults = computed(() => {
-  if (!tableSearchQuery.value.trim()) {
-    return results.value;
+    const response = await fetch(url.toString(), { method: "GET", headers });
+    if (!response.ok) {
+      throw new Error("Second API Request failed");
+    }
+
+    const data = await response.json();
+
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if ("data" in data) {
+        if (Array.isArray(data.data)) return data.data;
+        else if (data.data && typeof data.data === "object") return [data.data];
+      }
+      const possibleArrayKeys = ["results", "items", "records", "documents"];
+      for (const key of possibleArrayKeys) {
+        if (Array.isArray(data[key])) return data[key];
+      }
+      if (Object.keys(data).length > 0) return [data];
+    }
+    return [];
+  } catch (error) {
+    console.error("Second API Error:", error);
+    throw error;
   }
-  
-  const query = tableSearchQuery.value.toLowerCase().trim();
-  
-  return results.value.filter(item => {
-    return Object.values(item).some(value => {
-      return String(value).toLowerCase().includes(query);
-    });
-  });
-});
+}
+
+// work status
+async function searchThirdApi(query) {
+  const baseUrl = "https://api.wisemelon.ai/api/external/collection/68d0f72b1dc3f4a4ee9556d7/data";
+  const apiKey = "2ac09287f4a7573a36b82f8be60d85b6";
+  const apiSecret = "88bf2909e3bd1cf35710b5753717c34573f8a66316b927f7a78a4033601c4015";
+
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.set("limit", "10");
+    url.searchParams.set("skip", "0");
+    // if (query && query.trim() !== "") {
+    //   url.searchParams.set("query", query.trim());
+    // }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "x-api-secret": apiSecret
+    };
+
+    const response = await fetch(url.toString(), { method: "GET", headers });
+    if (!response.ok) {
+      throw new Error("Third API Request failed");
+    }
+
+    const data = await response.json();
+
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object") {
+      if ("data" in data) {
+        if (Array.isArray(data.data)) return data.data;
+        else if (data.data && typeof data.data === "object") return [data.data];
+      }
+      const possibleArrayKeys = ["results", "items", "records", "documents"];
+      for (const key of possibleArrayKeys) {
+        if (Array.isArray(data[key])) return data[key];
+      }
+      if (Object.keys(data).length > 0) return [data];
+    }
+    return [];
+  } catch (error) {
+    console.error("Third API Error:", error);
+    throw error;
+  }
+}
 
 // Helper function to format column labels
 function formatColumnLabel(key) {
@@ -211,53 +228,6 @@ const selectedItem = computed(() => {
     ? results.value[0]
     : null;
 });
-
-// Utility to find a best-effort image URL field from result
-function extractImageUrl(item) {
-  if (!item || typeof item !== 'object') return null;
-  const candidateKeys = [
-    'photo', 'image', 'imageUrl', 'avatar', 'profileImage', 'picture', 'img', 'logo'
-  ];
-  for (const key of candidateKeys) {
-    if (key in item && isUrl(String(item[key]))) return String(item[key]);
-  }
-  return null;
-}
-
-// preferred groups for SPDCL Data fields
-const preferredGroups = [
-  ['_id', 'Client Id'],
-  ['Farmer Name(Applicant Name)', 'applicant_name', 'name'],
-  ['Application No', 'application_no.', 'appNo'],
-  ['Mobile Number', 'phone', 'contact'],
-  ['Email ID', 'email'], 
-  ['EMD Paid Capacity (MW)', 'LOA Issued Capacity (MW)', 'Capacity of Solar Power applied (KW)'],
-  ['Location Circle', 'circle'], 
-  ['Location Division', 'division'],
-  ['Location Section', 'section'],
-  ['Distance of proposed land and sub station (KM)', 'distance'],
-  ['Location Sub Station', 'subsection'],
-  ['Status']
-];
-
-// Show IDs as the user requested; exclude only image-like keys
-const excludedKeys = [
-  'organization_id', '__v', 'updatedAt', 'Onboard Date', 
-  'Communication Address', 'Communication District', 'Communication Mandal',
-  'Communication State', 'Communication Village', 'Application Type',
-  'Authorized Person', 'Father/Husband Name', 'Gender', 'Image',
-  'Installation Solar Power Plant', 'Land Coverage (Acres)', 'Land Survey No',
-  'Location DISCOM', 'Location Sub Division', 'Net worth of the Firm',
-  'Pan Number', 'Reject/pending Reason', 'Sl', 'Sl_No', 'Aadhar Number'
-];
-const imageCandidateKeys = ['photo','image','imageUrl','avatar','profileImage','picture','img','logo'];
-
-function groupIndexForKey(key) {
-  for (let i = 0; i < preferredGroups.length; i++) {
-    if (preferredGroups[i].includes(key)) return i;
-  }
-  return Number.MAX_SAFE_INTEGER;
-}
 
 function getFriendlyLabelForKey(key) {
   const labelMap = {
@@ -342,23 +312,25 @@ const workStatusSteps = [
 
 async function fetchWorkStatusAndShow(event) {
   const anchor = event.currentTarget;
-  
-  // Toggle functionality - close if already open
+
+  // Toggle popover if already open
   if (workStatusPopover && workStatusPopover._element === anchor) {
     workStatusPopover.hide();
     workStatusPopover.dispose();
     workStatusPopover = null;
     return;
   }
-  
-  // Close any existing work status popover before opening new one
+
+  // Close other popovers with proper cleanup
   if (workStatusPopover) {
+    workStatusPopover.hide();
     workStatusPopover.dispose();
     workStatusPopover = null;
   }
   
   // Close other popovers if they're open (mutual exclusivity)
   if (paymentStatusPopover) {
+    paymentStatusPopover.hide();
     paymentStatusPopover.dispose();
     paymentStatusPopover = null;
   }
@@ -368,85 +340,53 @@ async function fetchWorkStatusAndShow(event) {
       window.reportChart.destroy();
       window.reportChart = null;
     }
+    reportPopover.hide();
     reportPopover.dispose();
     reportPopover = null;
   }
-  
+  if (multipleResultsPopover) {
+    multipleResultsPopover.hide();
+    multipleResultsPopover.dispose();
+    multipleResultsPopover = null;
+  }
+
   workStatusLoading.value = true;
   workStatusError.value = "";
   workStatusData.value = null;
 
   try {
-    const item = selectedItem.value;
-    if (!item) {
-      throw new Error('No item selected');
-    }
+    if (!lastSearchClientId) throw new Error("No Client ID available from search");
 
-    // Map actual API data to work status steps
-    const stepsWithStatus = workStatusSteps.map(step => {
-      let completed = false;
-      let date = null;
+    // Fetch data from third API
+    const data = await searchThirdApi(); // Returns array of work status records
 
-      switch (step.key) {
-        case 'site_survey':
-          completed = !!item['Onboard Date']; // If onboarded, survey is done
-          date = completed ? new Date(item['Onboard Date']).toLocaleDateString() : null;
-          break;
-        case 'dpr_initiated':
-          completed = !!item['Application No']; // If app exists, DPR initiated
-          date = completed ? new Date(item['Onboard Date']).toLocaleDateString() : null;
-          break;
-        case 'dpr_submitted_redco':
-        case 'dpr_redco_approval':
-          completed = !!item['EMD Paid Capacity (MW)'] && item['EMD Paid Capacity (MW)'] > 0;
-          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
-          break;
-        case 'dpr_submitted_bank':
-        case 'loan_application':
-          completed = item['Status'] === 'Active' && !!item['EMD Paid Capacity (MW)'];
-          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
-          break;
-        case 'loan_milestone':
-        case 'plant_design':
-          completed = !!item['LOA Issued Capacity (MW)'] && item['LOA Issued Capacity (MW)'] > 0;
-          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
-          break;
-        default:
-          // For remaining steps, only mark complete if LOA is issued and status is Active
-          completed = item['Status'] === 'Active' && 
-                     !!item['LOA Issued Capacity (MW)'] && 
-                     item['LOA Issued Capacity (MW)'] > 0;
-          date = completed ? new Date(item['updatedAt']).toLocaleDateString() : null;
-      }
+    // Normalize the search Client ID
+    const normalizedSearchId = String(lastSearchClientId).trim().toLowerCase();
 
-      return {
-        ...step,
-        completed,
-        date
-      };
-    });
+    // Filter by Client Id from last search - check multiple possible field names
+    const filteredData = Array.isArray(data)
+      ? data.filter(d => {
+          const clientId = d['Client ID'] || d['Client Id'] || d['clientId'] || d['client_id'];
+          const normalizedClientId = String(clientId || '').trim().toLowerCase();
+          return normalizedClientId === normalizedSearchId;
+        })
+      : [];
 
-    // Calculate progress based on actual completed steps
-    const completedCount = stepsWithStatus.filter(s => s.completed).length;
+    if (!filteredData.length) throw new Error("No work status data found for this client");
 
-    workStatusData.value = {
-      applicationNo: item['Application No'] || 'Unknown',
-      clientId: item['Client Id'] || 'Unknown',
-      currentStatus: item['Status'] || 'Unknown',
-      steps: stepsWithStatus,
-      overallProgress: Math.round((completedCount / workStatusSteps.length) * 100),
-      lastUpdated: item['updatedAt'] || new Date().toISOString()
-    };
+    const record = filteredData[0];
+    const processedData = processWorkStatusData(record);
+    workStatusData.value = processedData;
 
   } catch (e) {
-    workStatusError.value = e?.message || 'Failed to fetch work status';
+    workStatusError.value = e?.message || "Failed to fetch work status";
   } finally {
     workStatusLoading.value = false;
     await nextTick();
     const html = buildWorkStatusPopoverHtml();
-    workStatusPopover = new Popover(anchor, { 
-      html: true, 
-      content: html, 
+    workStatusPopover = new Popover(anchor, {
+      html: true,
+      content: html,
       placement: 'top',
       customClass: 'work-status-popover'
     });
@@ -464,12 +404,55 @@ async function fetchWorkStatusAndShow(event) {
         document.removeEventListener('click', handleDocumentClick);
       }
     }
-
-    setTimeout(() => { 
-      document.addEventListener('click', handleDocumentClick);
-    }, 0);
+    setTimeout(() => document.addEventListener('click', handleDocumentClick), 0);
   }
 }
+
+// Process work status data from API
+function processWorkStatusData(record) {
+  const stepMapping = [
+    { key: 'Site Survey Completed', label: 'Site survey completed' },
+    { key: 'DPR Initiated', label: 'DPR Initiated' },
+    { key: 'DPR Submitted to REDCO', label: 'DPR Submitted to REDCO' },
+    { key: 'DPR REDCO Approval Received', label: 'DPR REDCO Approval Received' },
+    { key: 'DPR Submitted to Bank', label: 'DPR Submitted to Bank' },
+    { key: 'Loan Application Submitted', label: 'Loan Application Submitted' },
+    { key: 'Loan Initial Milestone Received', label: 'Loan initial milestone received' },
+    { key: 'Complete Plant Design', label: 'Complete plant design' },
+    { key: 'Initial PI Raised For Material Procurement', label: 'Initial personal invoices raised for material procurement' },
+    { key: 'Preliminary Civil Work began', label: 'Preliminary civil work began' },
+    { key: 'Materials Received At Site Location ', label: 'Materials received at site location' },
+    { key: 'Civil work Execution under Progress', label: 'Civil work execution under progress' },
+    { key: 'Module Mounting Structute Errected', label: 'Module Mounting Structure Erected' },
+    { key: 'Solar Module And Electrical Equipment Installation Under Way', label: 'Solar Module and Electrical Equipment installation under way' },
+    { key: 'Civil Machenical and Eectrical And Installations completed', label: 'Civil, Mechanical and Electrical installations Completed' },
+    { key: 'Evacuation Infrastructure Carried Out', label: 'Evacuation infrastructure Carried out' },
+    { key: 'Grid Synchronized', label: 'Grid Synchronized' },
+    { key: 'End to End Meticulous Testing', label: 'End to end meticulous testing' },
+    { key: 'RMS Deployment ', label: 'RMS Deployment' },
+    { key: 'Final Handover To O&M Team', label: 'Final Handover to O&M team' }
+  ];
+
+  const steps = stepMapping.map((mapping, index) => ({
+    id: index + 1,
+    label: mapping.label,
+    completed: record[mapping.key] === true,
+    date: record[mapping.key] === true ? '' : null
+  }));
+
+  const completedSteps = steps.filter(s => s.completed).length;
+  const overallProgress = Math.round((completedSteps / steps.length) * 100);
+
+  return {
+    clientId: record['Client ID'] || record['Client Id'] || 'Unknown',
+    clientName: record['Client Name'] || 'Unknown',
+    applicationNo: record['Application No'] || 'Unknown',
+    steps: steps,
+    overallProgress: overallProgress,
+    lastUpdated: record.updatedAt || new Date().toISOString()
+  };
+}
+
 
 function buildWorkStatusPopoverHtml() {
   if (workStatusLoading.value) {
@@ -520,7 +503,6 @@ function buildWorkStatusPopoverHtml() {
       <div class="d-flex align-items-center justify-content-between mb-3 pe-4">
         <div>
           <div class="fw-bold h6 mb-1">Work Status</div>
-          <div class="small text-muted">${data.applicationNo || 'Unknown'}</div>
         </div>
         <div class="text-end">
           <span class="badge bg-primary px-2 py-1">
@@ -566,23 +548,25 @@ const paymentStatusData = ref(null);
 
 async function fetchPaymentStatusAndShow(event) {
   const anchor = event.currentTarget;
-  
-  // Toggle functionality - close if already open
+
+  // Toggle popover if already open
   if (paymentStatusPopover && paymentStatusPopover._element === anchor) {
     paymentStatusPopover.hide();
     paymentStatusPopover.dispose();
     paymentStatusPopover = null;
     return;
   }
-  
-  // Close any existing payment status popover before opening new one
+
+  // Close other popovers with proper cleanup
   if (paymentStatusPopover) {
+    paymentStatusPopover.hide();
     paymentStatusPopover.dispose();
     paymentStatusPopover = null;
   }
   
   // Close other popovers if they're open (mutual exclusivity)
   if (workStatusPopover) {
+    workStatusPopover.hide();
     workStatusPopover.dispose();
     workStatusPopover = null;
   }
@@ -592,98 +576,47 @@ async function fetchPaymentStatusAndShow(event) {
       window.reportChart.destroy();
       window.reportChart = null;
     }
+    reportPopover.hide();
     reportPopover.dispose();
     reportPopover = null;
   }
-  
+  if (multipleResultsPopover) {
+    multipleResultsPopover.hide();
+    multipleResultsPopover.dispose();
+    multipleResultsPopover = null;
+  }
+
   paymentStatusLoading.value = true;
   paymentStatusError.value = "";
   paymentStatusData.value = null;
 
   try {
-    const item = selectedItem.value;
-    if (!item) {
-      throw new Error('No item selected');
-    }
+    if (!lastSearchClientId) throw new Error("No Client ID available from search");
 
-    // Check if we have enough data for payment status
-    const capacity = parseFloat(item['Capacity of Solar Power applied (KW)']);
-    const emdCapacity = parseFloat(item['EMD Paid Capacity (MW)']);
-    const loaCapacity = parseFloat(item['LOA Issued Capacity (MW)']);
-
-    if (!capacity || capacity === 0) {
-      throw new Error('Payment data is not available - missing capacity information');
-    }
-
-    // Calculate payment amounts based on actual data
-    const totalAmount = capacity * 50; // Assuming 50 rupees per KW
+    // Fetch actual data from second API
+    const data = await searchSecondApi(); // No query param needed
     
-    // Create payment history based on actual API data
-    const paymentHistory = [
-      {
-        id: 1,
-        type: 'Advance',
-        amount: totalAmount * 0.2,
-        status: item['Onboard Date'] ? 'Completed' : 'Pending',
-        date: item['Onboard Date'] ? new Date(item['Onboard Date']).toLocaleDateString() : null,
-        reference: item['Onboard Date'] ? 'ADV001' : null,
-        percentage: 20
-      },
-      {
-        id: 2,
-        type: 'EMD Payment',
-        amount: emdCapacity ? emdCapacity * 1000 * 50 * 0.1 : totalAmount * 0.1,
-        status: (emdCapacity && emdCapacity > 0) ? 'Completed' : 'Pending',
-        date: (emdCapacity && emdCapacity > 0) ? new Date(item['updatedAt']).toLocaleDateString() : null,
-        reference: (emdCapacity && emdCapacity > 0) ? 'EMD001' : null,
-        percentage: 10
-      },
-      {
-        id: 3,
-        type: 'Material Procurement',
-        amount: totalAmount * 0.4,
-        status: (item['Status'] === 'Active' && loaCapacity > 0) ? 'Completed' : 'Pending',
-        date: (item['Status'] === 'Active' && loaCapacity > 0) ? new Date(item['updatedAt']).toLocaleDateString() : null,
-        reference: (item['Status'] === 'Active' && loaCapacity > 0) ? 'MAT001' : null,
-        percentage: 40
-      },
-      {
-        id: 4,
-        type: 'Installation',
-        amount: totalAmount * 0.2,
-        status: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? 'Completed' : 'Pending',
-        date: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? new Date(item['updatedAt']).toLocaleDateString() : null,
-        reference: (item['Installation Solar Power Plant'] && item['Installation Solar Power Plant'].includes('plant')) ? 'INS001' : null,
-        percentage: 20
-      },
-      {
-        id: 5,
-        type: 'Final Payment',
-        amount: totalAmount * 0.1,
-        status: (item['Status'] === 'Active' && loaCapacity > 0) ? 'Completed' : 'Pending',
-        date: null, // Final payment typically comes later
-        reference: null,
-        percentage: 10
-      }
-    ];
+    // Normalize the search Client ID
+    const normalizedSearchId = String(lastSearchClientId).trim().toLowerCase();
+    
+    // Filter by Client Id from last search - check multiple possible field names
+    const filteredData = Array.isArray(data)
+      ? data.filter(d => {
+          const clientId = d['Client ID'] || d['Client Id'] || d['clientId'] || d['client_id'];
+          const normalizedClientId = String(clientId || '').trim().toLowerCase();
+          return normalizedClientId === normalizedSearchId;
+        })
+      : [];
 
-    // Calculate actual paid amount based on completed payments
-    const paidAmount = paymentHistory
-      .filter(p => p.status === 'Completed')
-      .reduce((sum, p) => sum + p.amount, 0);
+    if (!filteredData.length) throw new Error("No payment status data found for this client");
 
-    paymentStatusData.value = {
-      applicationNo: item['Application No'] || 'Unknown',
-      clientId: item['Client Id'] || 'Unknown',
-      totalAmount: totalAmount,
-      paidAmount: paidAmount,
-      pendingAmount: totalAmount - paidAmount,
-      paymentHistory: paymentHistory,
-      paymentProgress: Math.round((paidAmount / totalAmount) * 100)
-    };
+    // Process the actual API data
+    const record = filteredData[0];
+    const processedData = processPaymentStatusData(record);
+    paymentStatusData.value = processedData;     // Assign API response directly
 
   } catch (e) {
-    paymentStatusError.value = e?.message || 'Payment data is not available';
+    paymentStatusError.value = e?.message || 'Failed to fetch payment status';
   } finally {
     paymentStatusLoading.value = false;
     await nextTick();
@@ -708,11 +641,74 @@ async function fetchPaymentStatusAndShow(event) {
         document.removeEventListener('click', handleDocumentClick);
       }
     }
-
-    setTimeout(() => { 
-      document.addEventListener('click', handleDocumentClick);
-    }, 0);
+    setTimeout(() => document.addEventListener('click', handleDocumentClick), 0);
   }
+}
+
+// Process payment status data from API
+function processPaymentStatusData(record) {
+  
+  const paymentFields = [
+    { key: 'Advance Payment', label: 'Advance Payment' },
+    { key: 'DPR  Payment', label: 'DPR Payment' },
+    { key: '10% For Raising PO', label: '10% For Raising PO' },
+    { key: 'Bank Term 1 Funds Released', label: 'Bank Term 1 Funds Released' },
+    { key: 'Bank Term 2 Funds Released', label: 'Bank Term 2 Funds Released' },
+    { key: 'Bank Term 3 Funds Released', label: 'Bank Term 3 Funds Released' },
+    { key: 'Final Payment After Installation', label: 'Final Payment After Installation' }
+  ];
+  
+  paymentFields.forEach(field => {
+    console.log(`${field.key}:`, record[field.key], 'Parsed:', parseFloat(record[field.key]) || 0);
+  });
+
+  const paymentHistory = paymentFields.map(field => {
+    // Try to find the field with exact match or trimmed match
+    let rawValue = record[field.key];
+    
+    // If exact match fails, try to find a key that matches when trimmed
+    if (rawValue === undefined) {
+      const matchingKey = Object.keys(record).find(key => key.trim() === field.key.trim());
+      if (matchingKey) {
+        rawValue = record[matchingKey];
+        console.log(`Found match: "${field.key}" -> "${matchingKey}":`, rawValue);
+      }
+    }
+    
+    const amount = (rawValue === null || rawValue === undefined || rawValue === '') ? 0 : parseFloat(rawValue);
+    const finalAmount = isNaN(amount) ? 0 : amount;
+    const isCompleted = finalAmount > 0;
+    
+    return {
+      type: field.label,
+      amount: amount,
+      status: isCompleted ? 'Completed' : 'Pending',
+      date: isCompleted ? record.updatedAt || null : null,
+      reference: isCompleted ? `REF-${Math.random().toString(36).substr(2, 9).toUpperCase()}` : null,
+      percentage: 0 // Will be calculated below
+    };
+  });
+
+  const totalAmount = parseFloat(record['Total Amount']) || paymentHistory.reduce((sum, p) => sum + p.amount, 0);
+  const paidAmount = paymentHistory.filter(p => p.status === 'Completed').reduce((sum, p) => sum + p.amount, 0);
+  const pendingAmount = totalAmount - paidAmount;
+  const paymentProgress = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+
+  // Calculate percentage for each payment
+  paymentHistory.forEach(payment => {
+    payment.percentage = totalAmount > 0 ? Math.round((payment.amount / totalAmount) * 100) : 0;
+  });
+
+  return {
+    clientId: record['Client ID'] || record['Client Id'] || 'Unknown',
+    clientName: record['Client Name'] || 'Unknown',
+    applicationNo: record['Application No'] || 'Unknown',
+    totalAmount: totalAmount,
+    paidAmount: paidAmount,
+    pendingAmount: pendingAmount,
+    paymentProgress: paymentProgress,
+    paymentHistory: paymentHistory
+  };
 }
 
 function buildPaymentStatusPopoverHtml() {
@@ -774,17 +770,14 @@ function buildPaymentStatusPopoverHtml() {
       <div class="d-flex align-items-center justify-content-between mb-3 pe-4">
         <div>
           <div class="fw-bold h6 mb-1">Payment Status</div>
-          <div class="small text-muted">${data.applicationNo || 'Unknown'}</div>
         </div>
         <div class="text-end">
-          <span class="badge bg-success px-2 py-1">
-            ${data.paymentProgress || 0}% Paid
-          </span>
+          
         </div>
       </div>
 
       <!-- Payment Summary Cards -->
-      <div class="row g-2 mb-3">
+      <!-- <div class="row g-2 mb-3">
         <div class="col-4">
           <div class="bg-primary bg-gradient text-white rounded p-2 text-center">
             <div class="h6 mb-0">₹${(data.totalAmount || 0).toLocaleString()}</div>
@@ -803,7 +796,7 @@ function buildPaymentStatusPopoverHtml() {
             <small>Pending</small>
           </div>
         </div>
-      </div>
+      </div>-->
 
       <!-- Progress Bar -->
       <div class="mb-3">
@@ -1038,15 +1031,22 @@ function showReportPopover(event) {
     return;
   }
 
-  // Close other popovers if they're open (mutual exclusivity)
+  // Close other popovers if they're open with proper cleanup
   if (workStatusPopover) {
+    workStatusPopover.hide();
     workStatusPopover.dispose();
     workStatusPopover = null;
   }
   
   if (paymentStatusPopover) {
+    paymentStatusPopover.hide();
     paymentStatusPopover.dispose();
     paymentStatusPopover = null;
+  }
+  if (multipleResultsPopover) {
+    multipleResultsPopover.hide();
+    multipleResultsPopover.dispose();
+    multipleResultsPopover = null;
   }
 
   // Clean up any existing chart and popover
@@ -1152,37 +1152,6 @@ function getCellValue(item, column) {
   return String(value);
 }
 
-// Enhanced cell value formatter with status styling
-function getCellValueFormatted(item, column) {
-  const value = getCellValue(item, column);
-  
-  // Add status styling for specific columns
-  if (column.key.toLowerCase().includes('status') || 
-      column.key.toLowerCase().includes('reject') ||
-      column.key.toLowerCase().includes('pending')) {
-    
-    if (value && value.toLowerCase().includes('active')) {
-      return `<span class="status-active">${value}</span>`;
-    } else if (value && (value.toLowerCase().includes('pending') || value.toLowerCase().includes('processing'))) {
-      return `<span class="status-pending">${value}</span>`;
-    } else if (value && (value.toLowerCase().includes('reject') || value.toLowerCase().includes('cancel'))) {
-      return `<span class="status-rejected">${value}</span>`;
-    }
-  }
-  
-  // Add email styling
-  if (isEmail(value)) {
-    return `<a href="mailto:${value}" class="text-decoration-none">${value}</a>`;
-  }
-  
-  // Add URL styling
-  if (isUrl(value)) {
-    return `<a href="${value}" target="_blank" class="text-decoration-none" rel="noopener noreferrer">View Link</a>`;
-  }
-  
-  return value;
-}
-
 // Helper function to check if a value is a URL
 function isUrl(value) {
   if (typeof value !== 'string') return false;
@@ -1192,147 +1161,6 @@ function isUrl(value) {
   } catch {
     return false;
   }
-}
-
-// Helper function to check if a value is an email
-function isEmail(value) {
-  if (typeof value !== 'string') return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(value);
-}
-
-// Helper function to truncate long text
-function truncateText(text, maxLength = 100) {
-  if (typeof text !== 'string') return text;
-  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-}
-
-// Table sorting functionality
-function sortTable(column) {
-  if (sortColumn.value === column.key) {
-    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortColumn.value = column.key;
-    sortDirection.value = 'asc';
-  }
-  
-  results.value.sort((a, b) => {
-    let aVal = getCellValue(a, column);
-    let bVal = getCellValue(b, column);
-    
-    // Convert to string for comparison
-    aVal = String(aVal).toLowerCase();
-    bVal = String(bVal).toLowerCase();
-    
-    // Numeric comparison for numbers
-    if (!isNaN(aVal) && !isNaN(bVal)) {
-      aVal = parseFloat(aVal);
-      bVal = parseFloat(bVal);
-    }
-    
-    let comparison = 0;
-    if (aVal > bVal) {
-      comparison = 1;
-    } else if (aVal < bVal) {
-      comparison = -1;
-    }
-    
-    return sortDirection.value === 'desc' ? comparison * -1 : comparison;
-  });
-}
-
-// View detailed information for a specific item
-function viewDetails(item, index) {
-  // Update the selectedItem to show this specific item in the client details section
-  results.value = [item]; // This will make the selectedItem computed show this item
-  
-  // Scroll to the top of the modal to show the client details
-  const modalBody = document.querySelector('#heroSearchModal .modal-body');
-  if (modalBody) {
-    modalBody.scrollTop = 0;
-  }
-  
-  // Optional: Add a highlight effect
-  setTimeout(() => {
-    const clientDetailsCard = document.querySelector('#heroSearchModal .card.border.mb-4');
-    if (clientDetailsCard) {
-      clientDetailsCard.style.border = '2px solid #007bff';
-      clientDetailsCard.style.transition = 'all 0.3s ease';
-      setTimeout(() => {
-        clientDetailsCard.style.border = '';
-      }, 2000);
-    }
-  }, 100);
-}
-
-// Export functionality
-function exportToCSV() {
-  if (!results.value || results.value.length === 0) return;
-  
-  const headers = enhancedTableColumns.value.map(col => col.label);
-  const csvContent = [
-    headers.join(','),
-    ...results.value.map(item => 
-      enhancedTableColumns.value.map(col => {
-        const value = getCellValue(item, col);
-        // Escape quotes and wrap in quotes if contains comma
-        return value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
-      }).join(',')
-    )
-  ].join('\n');
-  
-  const blob = new Blob([csvContent], { type: 'text/csv' });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `energy_solar_data_${new Date().getTime()}.csv`;
-  link.click();
-  window.URL.revokeObjectURL(url);
-}
-
-// Print functionality
-function printTable() {
-  const printContent = `
-    <html>
-    <head>
-      <title>Energy Solar Data Report</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-        th { background-color: #f2f2f2; font-weight: bold; }
-        h1 { color: #344767; text-align: center; }
-        .report-info { margin-bottom: 20px; }
-      </style>
-    </head>
-    <body>
-      <h1>Energy Solar Data Report</h1>
-      <div class="report-info">
-        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-        <p><strong>Total Records:</strong> ${results.value.length}</p>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            ${enhancedTableColumns.value.slice(0, 8).map(col => `<th>${col.label}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${results.value.map(item => `
-            <tr>
-              ${enhancedTableColumns.value.slice(0, 8).map(col => `<td>${getCellValue(item, col)}</td>`).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `;
-  
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(printContent);
-  printWindow.document.close();
-  printWindow.print();
 }
 
 // Document Viewer functionality
@@ -1384,7 +1212,36 @@ function showDocumentsPopover(event) {
     return;
   }
 
-  if (documentPopover) { documentPopover.dispose(); documentPopover = null; }
+  // Close all popovers with proper cleanup
+  if (documentPopover) {
+    documentPopover.hide();
+    documentPopover.dispose();
+    documentPopover = null;
+  }
+  if (workStatusPopover) {
+    workStatusPopover.hide();
+    workStatusPopover.dispose();
+    workStatusPopover = null;
+  }
+  if (paymentStatusPopover) {
+    paymentStatusPopover.hide();
+    paymentStatusPopover.dispose();
+    paymentStatusPopover = null;
+  }
+  if (reportPopover) {
+    if (window.reportChart) {
+      window.reportChart.destroy();
+      window.reportChart = null;
+    }
+    reportPopover.hide();
+    reportPopover.dispose();
+    reportPopover = null;
+  }
+  if (multipleResultsPopover) {
+    multipleResultsPopover.hide();
+    multipleResultsPopover.dispose();
+    multipleResultsPopover = null;
+  }
 
   const item = selectedItem.value;
   if (!item) return;
@@ -1463,7 +1320,6 @@ function buildDocumentsPopoverHtml() {
 
   const data = documentData.value || {};
   const documents = data.documents || [];
-  console.log('Extracted documents:', documents);
 
   const documentsHtml = `
     <div class="documents-popover" style="max-height:400px; overflow-y:auto;">
@@ -1532,6 +1388,9 @@ function formatFileSize(size) {
   return Math.round(size / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+// Store the Client Id from the last search
+let lastSearchClientId = null;
+
 async function onHeroSearch() {
   const trimmed = heroQuery.value.trim();
   if (!trimmed) {
@@ -1540,9 +1399,7 @@ async function onHeroSearch() {
     results.value = [];
     hasSearched.value = false;
     isLoading.value = false;
-    if (heroModal) {
-      heroModal.show();
-    }
+    if (heroModal) heroModal.show();
     return;
   }
   isLoading.value = true;
@@ -1550,61 +1407,43 @@ async function onHeroSearch() {
   hasSearched.value = true;
   try {
     const data = await searchExternalApi(trimmed);
-    // Handle different response structures
+
+    // Normalize data
+    let finalResults = [];
     if (Array.isArray(data)) {
-      // Check if multiple results were found
-      if (data.length > 1) {
-        results.value = data;
-        // Show multiple results popover instead of displaying the data
-        setTimeout(() => {
-          showMultipleResultsPopover();
-        }, 100);
-        return;
-      } else if (data.length === 1) {
-        results.value = data;
-      } else {
-        results.value = [];
-      }
+      finalResults = data;
     } else if (data && typeof data === 'object') {
-      // If the response is an object, try to find array data
       const possibleArrayKeys = ['results', 'data', 'items', 'records'];
       let foundArray = null;
-      
       for (const key of possibleArrayKeys) {
         if (Array.isArray(data[key])) {
           foundArray = data[key];
           break;
         }
       }
-      
-      if (foundArray) {
-        if (foundArray.length > 1) {
-          results.value = foundArray;
-          // Show multiple results popover instead of displaying the data
-          setTimeout(() => {
-            showMultipleResultsPopover();
-          }, 100);
-          return;
-        } else {
-          results.value = foundArray;
-        }
-      } else if (Object.keys(data).length > 0) {
-        // If no array found but object has data, wrap it in an array
-        results.value = [data];
-      } else {
-        results.value = [];
-      }
+      if (foundArray) finalResults = foundArray;
+      else if (Object.keys(data).length > 0) finalResults = [data];
+    }
+
+    results.value = finalResults;
+
+    // Store Client Id of the first result for Work Status filtering
+    if (finalResults.length > 0) {
+      lastSearchClientId = finalResults[0]['Client Id'] || finalResults[0]['Client ID'] || finalResults[0]['clientId'] || finalResults[0]['client_id'];
     } else {
-      results.value = [];
+      lastSearchClientId = null;
+    }
+
+    if (finalResults.length > 1) {
+      setTimeout(() => showMultipleResultsPopover(), 100);
     }
   } catch (err) {
     errorMessage.value = err?.message || "Unexpected error";
     results.value = [];
+    lastSearchClientId = null;
   } finally {
     isLoading.value = false;
-    if (heroModal) {
-      heroModal.show();
-    }
+    if (heroModal) heroModal.show();
   }
 }
 
@@ -1889,6 +1728,20 @@ onUnmounted(() => {
   <div class="card card-body blur shadow-blur mx-3 mx-md-4 mt-n6">
     <PresentationCounter />
     <PresentationInformation />
+    <div 
+      style="
+        display: flex; 
+        flex-direction: column;
+        justify-content: center; 
+        align-items: center;
+        color: #344767;
+        font-weight: bold;
+        font-size: 2rem;
+      "    
+    >
+      Previous Project Images
+    </div>
+    <PresentationScrollingImg />
   </div>
   <DefaultFooter />
 </template>
